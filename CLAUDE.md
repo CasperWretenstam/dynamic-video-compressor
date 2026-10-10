@@ -24,6 +24,16 @@ Add a migration: `dotnet ef migrations add <Name> --project src/Dvc.Api --output
 
 Apply migrations: `dotnet ef database update --project src/Dvc.Api`
 
+## Git workflow
+
+- `main` is the only long-lived branch and always builds and passes tests.
+- Each change goes on a short-lived branch named `<type>/<short-description>` (`feat/job-priority`, `fix/delete-race`), squash-merged into `main` so it lands as one commit, then deleted.
+- Commit messages, including squash-merge titles, follow Conventional Commits: `type(scope): summary`, e.g. `feat(api): add job priority`.
+  - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `build` (build system, dependencies), `chore`.
+  - Scopes: `api`, `scripts`, `docker`. Add `core` and `desktop` when those projects exist. Leave the scope out for repo-wide changes.
+  - A breaking change to the HTTP API is marked with `!` (`feat(api)!: …`) and ships as a new `/v2` route group (see "Request lifecycle").
+- Releases are annotated tags per app, `api/vX.Y.Z` (Semantic Versioning), created on `main`. The release version is independent of the `/v1` route version.
+
 ## Request lifecycle
 
 `POST /v1/jobs` (multipart) → `202 Accepted` with a job ID, immediately, without waiting on FFmpeg → caller polls `GET /v1/jobs/{id}` for status → once `Completed`, `GET /v1/jobs/{id}/result` streams the compressed file back → the caller cleans up with `DELETE /v1/jobs/{id}`. `GET /v1/options` describes every job parameter for clients (see "Parameter philosophy" below). The job and options endpoints are mapped under a `/v1` route group in `Program.cs` (their own `Map*Endpoints` methods use unprefixed paths); `/health` and `/openapi` stay unversioned, since they describe the deployment rather than the API contract. A breaking change ships as a new `/v2` group alongside, not as an edit to `/v1`.
