@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+.vscode/
+tests/
+scripts/
+src/Dvc.Api/Storage/
+**/*.db
+**/*.db-shm
+**/*.db-wal

@@ -1,0 +1,17 @@
+services:
+  dvc-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5155:8080"
+    # Settings override the image's defaults here; see the README's
+    # Configuration section.
+    # environment:
+    #   - Encoding__Preset=medium
+    volumes:
+      - dvc-data:/data
+    restart: unless-stopped
+
+volumes:
+  dvc-data:
