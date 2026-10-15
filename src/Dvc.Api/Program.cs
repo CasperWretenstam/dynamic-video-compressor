@@ -147,11 +147,14 @@ if (app.Environment.IsDevelopment())
 
 // Liveness only: confirms the process responds, without checking the
 // database or storage. Used by the Docker HEALTHCHECK.
-app.MapGet("/health", () => Results.Ok());
+app.MapGet("/health", () => TypedResults.Ok());
 
 // Versioned, so a breaking change can ship as /v2 alongside. /health and
 // /openapi describe the deployment rather than the API, so they aren't.
-var v1 = app.MapGroup("/v1");
+// Every endpoint can return a 500 from the exception handler, so it's
+// declared once for the OpenAPI document.
+var v1 = app.MapGroup("/v1")
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
 v1.MapJobEndpoints();
 v1.MapOptionsEndpoints();
 
