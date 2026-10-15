@@ -1,12 +1,16 @@
 using System.Globalization;
 using Dvc.Api.Infrastructure.Data;
+using Dvc.Api.Infrastructure.OpenApi;
 using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
 using Dvc.Api.Models.DTOs.Responses;
 using Dvc.Api.Models.Entities;
+using Dvc.Api.Models.Options;
 using Dvc.Api.Services;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
@@ -29,16 +33,33 @@ public static class JobEndpoints
         var group = app.MapGroup("/jobs").WithTags("Jobs");
 
         group.MapPost("/", SubmitJob)
-            .WithName("SubmitJob");
+            .WithName("SubmitJob")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .AddOpenApiOperationTransformer((operation, context, _) =>
+            {
+                // The body is parsed by hand, so the form is described from
+                // the same parameter descriptions GET /v1/options returns.
+                var encodingOptions = context.ApplicationServices.GetRequiredService<IOptions<EncodingOptions>>().Value;
+                operation.RequestBody = JobFormSchema.Build(OptionsEndpoints.BuildJobOptions(encodingOptions));
+                return Task.CompletedTask;
+            });
 
         group.MapGet("/{id:guid}", GetJobStatus)
-            .WithName("GetJobStatus");
+            .WithName("GetJobStatus")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapGet("/{id:guid}/result", GetJobResult)
-            .WithName("GetJobResult");
+            .WithName("GetJobResult")
+            .Produces<Stream>(StatusCodes.Status200OK, "video/mp4")
+            .Produces<Stream>(StatusCodes.Status206PartialContent, "video/mp4")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapDelete("/{id:guid}", DeleteJob)
-            .WithName("DeleteJob");
+            .WithName("DeleteJob")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
     }
@@ -48,7 +69,7 @@ public static class JobEndpoints
     // and then needs a second copy. Sections are checked in the order they
     // arrive, so a client that sends its fields before the file never
     // uploads a video that a bad field would reject.
-    private static async Task<IResult> SubmitJob(
+    private static async Task<Results<AcceptedAtRoute<JobSubmittedResponse>, ProblemHttpResult>> SubmitJob(
         HttpRequest httpRequest,
         IJobSubmissionService jobSubmissionService,
         IConfiguration configuration,
@@ -215,7 +236,7 @@ public static class JobEndpoints
             submitted = true;
 
             // By route name, so the Location header includes the group prefix.
-            return TypedResults.AcceptedAtRoute(new { job.Id, job.Status }, "GetJobStatus", new { id = job.Id });
+            return TypedResults.AcceptedAtRoute(JobSubmittedResponse.FromJob(job), "GetJobStatus", new { id = job.Id });
         }
         catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
         {
@@ -234,24 +255,24 @@ public static class JobEndpoints
 
     // Every error is a problem details response (RFC 9457), with the message
     // in "detail".
-    private static IResult Problem(int statusCode, string detail) =>
+    private static ProblemHttpResult Problem(int statusCode, string detail) =>
         TypedResults.Problem(detail, statusCode: statusCode);
 
-    private static IResult BadRequest(string detail) =>
+    private static ProblemHttpResult BadRequest(string detail) =>
         Problem(StatusCodes.Status400BadRequest, detail);
 
-    private static IResult JobNotFound(Guid id) =>
+    private static ProblemHttpResult JobNotFound(Guid id) =>
         Problem(StatusCodes.Status404NotFound, $"No job with ID {id}.");
 
-    private static IResult UploadTooLarge() =>
+    private static ProblemHttpResult UploadTooLarge() =>
         Problem(
             StatusCodes.Status413PayloadTooLarge,
             $"Upload exceeds the {UploadDefinitions.MaxUploadBytes / (1024 * 1024)}MB limit.");
 
-    private static IResult ExpectedNumber(string field) =>
+    private static ProblemHttpResult ExpectedNumber(string field) =>
         BadRequest($"Expected a number for: {field}.");
 
-    private static IResult Unsupported(string parameter, string value, IEnumerable<string> allowed) =>
+    private static ProblemHttpResult Unsupported(string parameter, string value, IEnumerable<string> allowed) =>
         BadRequest($"Unsupported {parameter} '{value}'. Allowed: {string.Join(", ", allowed)}");
 
     // Invariant culture, so "29.97" parses regardless of server locale.
@@ -269,7 +290,7 @@ public static class JobEndpoints
         StringSegment.IsNullOrEmpty(contentDisposition.FileName) &&
         StringSegment.IsNullOrEmpty(contentDisposition.FileNameStar);
 
-    private static async Task<IResult> GetJobStatus(Guid id, DvcDbContext db, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<JobStatusResponse>, ProblemHttpResult>> GetJobStatus(Guid id, DvcDbContext db, CancellationToken cancellationToken)
     {
         var job = await db.Jobs.FindAsync([id], cancellationToken);
 
@@ -281,7 +302,7 @@ public static class JobEndpoints
         return TypedResults.Ok(JobStatusResponse.FromJob(job));
     }
 
-    private static async Task<IResult> GetJobResult(Guid id, DvcDbContext db, CancellationToken cancellationToken)
+    private static async Task<Results<PhysicalFileHttpResult, ProblemHttpResult>> GetJobResult(Guid id, DvcDbContext db, CancellationToken cancellationToken)
     {
         var job = await db.Jobs.FindAsync([id], cancellationToken);
 
@@ -301,7 +322,7 @@ public static class JobEndpoints
     // Deleting a queued job cancels it, since the worker skips IDs whose row
     // is gone. A processing job is refused: an encode can't be stopped
     // partway.
-    private static async Task<IResult> DeleteJob(
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteJob(
         Guid id,
         DvcDbContext db,
         ILoggerFactory loggerFactory,

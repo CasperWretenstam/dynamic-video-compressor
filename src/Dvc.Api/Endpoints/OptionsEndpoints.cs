@@ -3,6 +3,7 @@ using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
 using Dvc.Api.Models.DTOs.Responses;
 using Dvc.Api.Models.Options;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 
 namespace Dvc.Api.Endpoints;
@@ -20,7 +21,7 @@ public static class OptionsEndpoints
 
     // Built from the same definitions and config the job pipeline uses, so
     // it can't drift from what POST /v1/jobs accepts.
-    private static IResult GetJobOptions(IOptions<EncodingOptions> encodingOptions) =>
+    private static Ok<JobOptionsResponse> GetJobOptions(IOptions<EncodingOptions> encodingOptions) =>
         TypedResults.Ok(BuildJobOptions(encodingOptions.Value));
 
     public static JobOptionsResponse BuildJobOptions(EncodingOptions encodingOptions)
