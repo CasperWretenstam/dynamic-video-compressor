@@ -7,6 +7,7 @@ using Dvc.Api.Models.Options;
 using Dvc.Api.Services;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -140,9 +141,13 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (app.Environment.IsDevelopment())
+// The API description (/openapi/v1.json) and its interactive UI (/scalar).
+// Off unless configured, so a deployment only serves them if an operator
+// turns them on; appsettings.Development.json turns them on locally.
+if (app.Configuration.GetValue("OpenApi:Enabled", defaultValue: false))
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 // Liveness only: confirms the process responds, without checking the

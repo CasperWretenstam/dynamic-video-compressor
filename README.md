@@ -52,6 +52,15 @@ Every error response is [problem details](https://www.rfc-editor.org/rfc/rfc9457
 
 `detail` is absent only for errors the framework generates itself, such as an unknown route.
 
+### API reference
+
+With `OpenApi__Enabled=true` (see Configuration), the service also serves:
+
+- `/scalar` — an interactive API reference in the browser. It lists every endpoint, and you can pick a video, submit it, poll the job and download the result from there, without writing curl commands.
+- `/openapi/v1.json` — the OpenAPI document the page is built from, for generating clients or importing into other tools.
+
+Both are off by default. To turn them on in Docker, uncomment `environment:` in `docker-compose.yml` and add `- OpenApi__Enabled=true`, then open `http://localhost:5155/scalar`. A local `dotnet run` has them on already (see Development).
+
 ### Job parameters
 
 Only `file` is required. Leaving everything else out is the intended default: the video is re-encoded at `Balanced` quality, keeping its own aspect ratio, resolution and framerate, but brought down to the configured caps (1080p, 30fps by default) if it exceeds them.
@@ -117,6 +126,7 @@ The image's defaults work as-is, so no configuration is required to get started.
 | `Encoding__Preset` | `slow` | Encoder preset for jobs that don't set `EncoderPreset`. Drop to `medium` or `fast` if the queue backs up |
 | `Encoding__DefaultMaxShortSide` | `1080` | Short-side cap (px) for jobs that don't set `Resolution`. Set to empty (`Encoding__DefaultMaxShortSide=`) to keep source resolution |
 | `Encoding__DefaultMaxFps` | `30` | Framerate cap for jobs that don't set `Fps`. Set to empty to keep source framerate |
+| `OpenApi__Enabled` | `false` | Serves the interactive API reference at `/scalar` and the OpenAPI document at `/openapi/v1.json` (see API reference) |
 
 Invalid `Encoding__*` values (an unknown preset, a cap of 0) stop the service at startup with a message naming the setting, rather than failing jobs later.
 
@@ -148,4 +158,4 @@ dotnet run --project src/Dvc.Api                  # serves http://localhost:5155
 dotnet test
 ```
 
-Run the database update once after cloning, and again whenever new migrations come in. [CLAUDE.md](CLAUDE.md) covers the architecture, design decisions and code conventions. Claude Code loads it automatically, and it's the place to read up before changing the code.
+Run the database update once after cloning, and again whenever new migrations come in. A local run has the API reference turned on, at `http://localhost:5155/scalar`. [CLAUDE.md](CLAUDE.md) covers the architecture, design decisions and code conventions. Claude Code loads it automatically, and it's the place to read up before changing the code.
