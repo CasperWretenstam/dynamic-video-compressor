@@ -49,7 +49,23 @@ public static class JobEndpoints
         return app;
     }
 
-    private static async Task<Results<AcceptedAtRoute<JobSubmittedResponse>, ProblemHttpResult>> SubmitJob(
+    /// <summary>Submit a video for compression</summary>
+    /// <remarks>
+    /// Uploads the video and its settings as <c>multipart/form-data</c> and
+    /// queues a job, responding straight away with its ID rather than waiting
+    /// for the encode. Poll <c>GET /v1/jobs/{id}</c> until the job's status is
+    /// <c>Completed</c> or <c>Failed</c>, then download the result from
+    /// <c>GET /v1/jobs/{id}/result</c>. Jobs are encoded one at a time, in the
+    /// order they were submitted.
+    /// </remarks>
+    /// <response code="202">The job is queued. The <c>Location</c> header points to its status.</response>
+    /// <response code="400">
+    /// A field or the file was rejected, e.g. an unknown or repeated field, an
+    /// invalid value, an unsupported file type or no file at all. No job was
+    /// created.
+    /// </response>
+    /// <response code="413">The upload is larger than the 2GB limit. No job was created.</response>
+    internal static async Task<Results<AcceptedAtRoute<JobSubmittedResponse>, ProblemHttpResult>> SubmitJob(
         HttpRequest httpRequest,
         IJobSubmissionService jobSubmissionService,
         IConfiguration configuration,
@@ -81,7 +97,16 @@ public static class JobEndpoints
         }
     }
 
-    private static async Task<Results<Ok<JobStatusResponse>, ProblemHttpResult>> GetJobStatus(Guid id, DvcDbContext db, CancellationToken cancellationToken)
+    /// <summary>Get a job's status</summary>
+    /// <remarks>
+    /// Poll this after submitting until <c>status</c> is <c>Completed</c> or
+    /// <c>Failed</c>. Once processing has analysed the video, <c>output</c>
+    /// shows the dimensions and framerate it's being encoded to.
+    /// </remarks>
+    /// <param name="id">The job's ID, as returned when it was submitted.</param>
+    /// <response code="200">The job's status, settings and output.</response>
+    /// <response code="404">There's no job with this ID, or it has been deleted.</response>
+    internal static async Task<Results<Ok<JobStatusResponse>, ProblemHttpResult>> GetJobStatus(Guid id, DvcDbContext db, CancellationToken cancellationToken)
     {
         var job = await db.Jobs.FindAsync([id], cancellationToken);
 
@@ -93,7 +118,18 @@ public static class JobEndpoints
         return TypedResults.Ok(JobStatusResponse.FromJob(job));
     }
 
-    private static async Task<Results<PhysicalFileHttpResult, ProblemHttpResult>> GetJobResult(Guid id, DvcDbContext db, CancellationToken cancellationToken)
+    /// <summary>Download a job's compressed video</summary>
+    /// <remarks>
+    /// Available once the job's status is <c>Completed</c>, until the job is
+    /// deleted. Supports range requests, so a download can be resumed or
+    /// streamed.
+    /// </remarks>
+    /// <param name="id">The job's ID, as returned when it was submitted.</param>
+    /// <response code="200">The compressed video, as an MP4.</response>
+    /// <response code="206">The requested byte range of the compressed video.</response>
+    /// <response code="404">There's no job with this ID, or it has been deleted.</response>
+    /// <response code="409">The job hasn't completed: it's still queued or processing, or it failed.</response>
+    internal static async Task<Results<PhysicalFileHttpResult, ProblemHttpResult>> GetJobResult(Guid id, DvcDbContext db, CancellationToken cancellationToken)
     {
         var job = await db.Jobs.FindAsync([id], cancellationToken);
 
@@ -110,15 +146,27 @@ public static class JobEndpoints
         return TypedResults.PhysicalFile(job.OutputPath, "video/mp4", enableRangeProcessing: true);
     }
 
-    // Deleting a queued job cancels it, since the worker skips IDs whose row
-    // is gone. A processing job is refused: an encode can't be stopped
-    // partway.
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteJob(
+    /// <summary>Delete a job</summary>
+    /// <remarks>
+    /// Removes the job and its files. Deleting a queued job cancels it; a job
+    /// that's being processed can't be deleted until it finishes. Jobs are
+    /// never deleted automatically, so delete each one once you're done with
+    /// it.
+    /// </remarks>
+    /// <param name="id">The job's ID, as returned when it was submitted.</param>
+    /// <response code="204">The job and its files were deleted.</response>
+    /// <response code="404">There's no job with this ID, or it has already been deleted.</response>
+    /// <response code="409">The job is being processed. Try again once it has finished.</response>
+    internal static async Task<Results<NoContent, ProblemHttpResult>> DeleteJob(
         Guid id,
         DvcDbContext db,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        // A queued job is cancelled by deleting its row, since the worker
+        // skips IDs whose row is gone. A processing one is refused, since an
+        // encode can't be stopped partway.
+        //
         // Deletes only if the status is still the one just read, so it can't
         // race the worker claiming the job; otherwise it re-reads. Status
         // only moves forward and processing returns, so the loop ends.

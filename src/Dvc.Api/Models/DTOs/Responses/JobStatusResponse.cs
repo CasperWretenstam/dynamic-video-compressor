@@ -2,12 +2,30 @@ using Dvc.Api.Models.Entities;
 
 namespace Dvc.Api.Models.DTOs.Responses;
 
-/// <summary>The body of <c>GET /v1/jobs/{id}</c>.</summary>
-/// <param name="Settings">What the job was submitted with.</param>
+/// <summary>
+/// A job's progress, the settings it was submitted with, and the output
+/// those settings resolved to.
+/// </summary>
+/// <param name="Id">The job's ID.</param>
+/// <param name="Status">Where the job is in processing.</param>
+/// <param name="ErrorMessage">
+/// Why the job failed, written so it can be shown to end users. Null unless
+/// <c>status</c> is <c>Failed</c>.
+/// </param>
+/// <param name="Warning">
+/// How the job differs from what was requested, without having stopped it:
+/// for example a <c>QualityPreference</c> ignored because <c>TargetSizeMb</c>
+/// was also set, or an output that comes in under its target size. Null when
+/// there's nothing to report.
+/// </param>
+/// <param name="CreatedAt">When the job was submitted.</param>
+/// <param name="CompletedAt">
+/// When the job finished, whether it completed or failed. Null until then.
+/// </param>
+/// <param name="Settings">The settings the job was submitted with.</param>
 /// <param name="Output">
-/// The output dimensions and framerate the submitted settings
-/// (<see cref="Settings"/>) resolved to. Null until processing has probed
-/// the source.
+/// The dimensions and framerate the video is encoded to. Null until
+/// processing has analysed the video.
 /// </param>
 public sealed record JobStatusResponse(
     Guid Id,
@@ -32,14 +50,28 @@ public sealed record JobStatusResponse(
             : null);
 }
 
-/// <summary>The settings a job was submitted with.</summary>
+/// <summary>
+/// The settings a job was submitted with, with this deployment's defaults
+/// filled in where they don't depend on the video.
+/// </summary>
+/// <param name="QualityPreference">
+/// The quality level the video is encoded at. Null when the job aims for a
+/// file size (<c>targetSizeMb</c>) instead.
+/// </param>
+/// <param name="TargetSizeMb">
+/// The file size, in MB, the output stays under. Null when the job encodes
+/// at a quality level (<c>qualityPreference</c>) instead.
+/// </param>
 /// <param name="Resolution">
-/// Null when it follows the source. The resulting output dimensions are
-/// reported separately (<see cref="JobOutput"/>).
+/// The requested resolution. Null when it follows the video's own; the
+/// job's <c>output</c> shows the dimensions it resolved to.
 /// </param>
 /// <param name="Fps">
-/// Null when it follows the source. The resulting output framerate is
-/// reported separately (<see cref="JobOutput"/>).
+/// The requested framerate. Null when it follows the video's own; the job's
+/// <c>output</c> shows the framerate it resolved to.
+/// </param>
+/// <param name="EncoderPreset">
+/// The encoder preset: the one submitted, or this deployment's default.
 /// </param>
 public sealed record JobSettings(
     string? QualityPreference,
@@ -48,9 +80,16 @@ public sealed record JobSettings(
     double? Fps,
     string EncoderPreset);
 
-/// <summary>
-/// The output dimensions and framerate a job's settings resolved to for its
-/// source.
-/// </summary>
-/// <param name="Fps">The source's own rate when it was kept as-is; null if it couldn't be determined.</param>
+/// <summary>The dimensions and framerate a job's video is encoded to.</summary>
+/// <param name="Width">The output width, in pixels.</param>
+/// <param name="Height">The output height, in pixels.</param>
+/// <param name="Fps">
+/// The output framerate: the requested one, or else the video's own, lowered
+/// to this deployment's limit if it's higher. Null when none was requested
+/// and the video's own couldn't be determined.
+/// </param>
+/// <remarks>
+/// Set once processing has probed the source, so a job that failed after
+/// that still reports it.
+/// </remarks>
 public sealed record JobOutput(int Width, int Height, double? Fps);

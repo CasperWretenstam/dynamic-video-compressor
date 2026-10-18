@@ -8,7 +8,7 @@ namespace Dvc.Api.Infrastructure;
 
 /// <summary>
 /// Compresses queued jobs one at a time, in the order they were submitted,
-/// taking each job's ID from the job queue (<see cref="IJobQueue"/>).
+/// taking each job's ID from the job queue (<c>IJobQueue</c>).
 /// </summary>
 /// <remarks>
 /// Each job gets its own dependency scope, since the database context is

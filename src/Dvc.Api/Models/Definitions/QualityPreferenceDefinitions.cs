@@ -2,11 +2,11 @@ namespace Dvc.Api.Models.Definitions;
 
 /// <summary>
 /// The quality tiers the API accepts
-/// (<see cref="DTOs.Requests.SubmitJobRequest.QualityPreference"/>) and the
+/// (<c>SubmitJobRequest.QualityPreference</c>) and the
 /// libx264 CRF (constant rate factor) each encodes at. CRF holds a consistent
 /// perceived quality and lets the bitrate follow the content. Not used when
 /// a job aims for a file size
-/// (<see cref="DTOs.Requests.SubmitJobRequest.TargetSizeMb"/>).
+/// (<c>SubmitJobRequest.TargetSizeMb</c>).
 /// </summary>
 public static class QualityPreferenceDefinitions
 {
@@ -24,7 +24,7 @@ public static class QualityPreferenceDefinitions
 
     /// <summary>
     /// Each accepted tier with its CRF at 1080p, adjusted for other output
-    /// sizes on resolving (<see cref="ResolveCrf"/>), and a description for
+    /// sizes on resolving (<c>ResolveCrf</c>), and a description for
     /// clients. Lower CRF is higher quality; each +6 roughly halves the bitrate.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, Tier> Tiers = new Dictionary<string, Tier>(StringComparer.OrdinalIgnoreCase)
