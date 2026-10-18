@@ -30,7 +30,7 @@ public static class VideoEncodingCalculator
     /// <summary>
     /// Computes the video bitrate (bps) that hits a target file size, after
     /// reserving room for audio and applying a safety buffer. Cap the result
-    /// at the source's own bitrate (<see cref="CapAtSourceBitrate"/>) before
+    /// at the source's own bitrate (<c>CapAtSourceBitrate</c>) before
     /// encoding.
     /// </summary>
     /// <param name="targetSizeMb">Desired output file size, in MB.</param>
@@ -50,8 +50,8 @@ public static class VideoEncodingCalculator
 
     /// <summary>
     /// The AAC bitrate (bps) to encode audio at: the source's own, capped at
-    /// a ceiling (<see cref="MaxAudioBitrateBps"/>), or a fallback rate
-    /// (<see cref="DefaultAudioBitrateBps"/>) when ffprobe can't report it.
+    /// a ceiling (<c>MaxAudioBitrateBps</c>), or a fallback rate
+    /// (<c>DefaultAudioBitrateBps</c>) when ffprobe can't report it.
     /// Zero when the source has no audio. The cap keeps a lossless source
     /// (~1.5Mbps) from carrying its rate over to AAC, which is transparent
     /// well below that, and eating a target size's video budget.
@@ -131,7 +131,7 @@ public static class VideoEncodingCalculator
     /// <summary>
     /// The output short side, in pixels: the requested one when set
     /// (honored as-is, including upscaling), otherwise the source's own,
-    /// lowered to <paramref name="maxShortSide"/> when that's set and smaller.
+    /// lowered to <c>maxShortSide</c> when that's set and smaller.
     /// </summary>
     public static int ResolveShortSide(int? requestedShortSide, int sourceShortSide, int? maxShortSide)
     {
@@ -171,7 +171,7 @@ public static class VideoEncodingCalculator
     /// <summary>
     /// The output framerate to force, or null to keep the source's own
     /// timing untouched: the requested framerate when set (honored as-is,
-    /// including raising it), otherwise <paramref name="maxFps"/> when the
+    /// including raising it), otherwise <c>maxFps</c> when the
     /// source is known to exceed it.
     /// </summary>
     /// <remarks>

@@ -150,9 +150,7 @@ if (app.Configuration.GetValue("OpenApi:Enabled", defaultValue: false))
     app.MapScalarApiReference();
 }
 
-// Liveness only: confirms the process responds, without checking the
-// database or storage. Used by the Docker HEALTHCHECK.
-app.MapGet("/health", () => TypedResults.Ok());
+app.MapHealthEndpoints();
 
 // Versioned, so a breaking change can ship as /v2 alongside. /health and
 // /openapi describe the deployment rather than the API, so they aren't.

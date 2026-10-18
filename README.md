@@ -56,7 +56,7 @@ Every error response is [problem details](https://www.rfc-editor.org/rfc/rfc9457
 
 With `OpenApi__Enabled=true` (see Configuration), the service also serves:
 
-- `/scalar` — an interactive API reference in the browser. It lists every endpoint, and you can pick a video, submit it, poll the job and download the result from there, without writing curl commands.
+- `/scalar` — an interactive API reference in the browser. It lists every endpoint with what it does, what each response means and what each field contains, and you can pick a video, submit it, poll the job and download the result from there, without writing curl commands.
 - `/openapi/v1.json` — the OpenAPI document the page is built from, for generating clients or importing into other tools.
 
 Both are off by default. To turn them on in Docker, uncomment `environment:` in `docker-compose.yml` and add `- OpenApi__Enabled=true`, then open `http://localhost:5155/scalar`. A local `dotnet run` has them on already (see Development).

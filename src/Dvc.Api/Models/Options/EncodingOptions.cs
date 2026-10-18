@@ -12,7 +12,7 @@ public class EncodingOptions
 
     /// <summary>
     /// Whether jobs aiming for a file size
-    /// (<see cref="DTOs.Requests.SubmitJobRequest.TargetSizeMb"/>) encode in
+    /// (<c>SubmitJobRequest.TargetSizeMb</c>) encode in
     /// two passes: slower, but the encoder sees the whole clip's complexity
     /// up front. Quality-tier jobs always use a single pass.
     /// </summary>
@@ -20,20 +20,20 @@ public class EncodingOptions
 
     /// <summary>
     /// The libx264 preset used when a job doesn't set its own; one of the
-    /// accepted presets (<see cref="EncoderPresetDefinitions.Presets"/>).
+    /// accepted presets (<c>EncoderPresetDefinitions.Presets</c>).
     /// </summary>
     public string Preset { get; set; } = EncoderPresetDefinitions.Default;
 
     /// <summary>
     /// Caps the output's short side, in pixels, when a job doesn't request a
-    /// resolution (<see cref="DTOs.Requests.SubmitJobRequest.Resolution"/>).
+    /// resolution (<c>SubmitJobRequest.Resolution</c>).
     /// Never upscales. Null (empty in config) disables the cap.
     /// </summary>
     public int? DefaultMaxShortSide { get; set; }
 
     /// <summary>
     /// Caps the output framerate when a job doesn't request one
-    /// (<see cref="DTOs.Requests.SubmitJobRequest.Fps"/>). Never raises it.
+    /// (<c>SubmitJobRequest.Fps</c>). Never raises it.
     /// Null (empty in config) disables the cap.
     /// </summary>
     public double? DefaultMaxFps { get; set; }

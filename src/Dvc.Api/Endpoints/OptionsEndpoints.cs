@@ -21,7 +21,15 @@ public static class OptionsEndpoints
 
     // Built from the same definitions and config the job pipeline uses, so
     // it can't drift from what POST /v1/jobs accepts.
-    private static Ok<JobOptionsResponse> GetJobOptions(IOptions<EncodingOptions> encodingOptions) =>
+    /// <summary>Describe the job parameters</summary>
+    /// <remarks>
+    /// Lists every field <c>POST /v1/jobs</c> accepts, with its type, allowed
+    /// values and default as configured on this deployment, so a client can
+    /// build its submission form from the running service instead of
+    /// hardcoding values.
+    /// </remarks>
+    /// <response code="200">Every job parameter.</response>
+    internal static Ok<JobOptionsResponse> GetJobOptions(IOptions<EncodingOptions> encodingOptions) =>
         TypedResults.Ok(BuildJobOptions(encodingOptions.Value));
 
     public static JobOptionsResponse BuildJobOptions(EncodingOptions encodingOptions)

@@ -1,10 +1,22 @@
 namespace Dvc.Api.Models.Entities;
 
+/// <summary>A compression job, as stored in the database.</summary>
 public class Job
 {
     public Guid Id { get; set; }
     public JobStatus Status { get; set; }
+
+    /// <summary>
+    /// Where the uploaded video is saved. The file is deleted once the job
+    /// finishes, whatever the outcome.
+    /// </summary>
     public required string InputPath { get; set; }
+
+    /// <summary>
+    /// Where the compressed video is written. Set when processing starts, so
+    /// a partial file can be found and deleted after a crash; cleared if the
+    /// job fails.
+    /// </summary>
     public string? OutputPath { get; set; }
 
     /// <summary>
@@ -14,47 +26,50 @@ public class Job
     public string? ErrorMessage { get; set; }
 
     /// <summary>
-    /// A non-fatal issue with a job that still completed, e.g. a quality
-    /// preference ignored because a target size was also set.
+    /// A non-fatal issue: the job didn't run exactly as requested, e.g. a
+    /// quality preference ignored because a target size was also set.
     /// </summary>
     public string? Warning { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>When the job completed or failed. Null until then.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
 
     /// <summary>
     /// The file size to stay under, in MB. Exactly one of this and the
-    /// quality tier (<see cref="QualityPreference"/>) is set.
+    /// quality tier (<c>QualityPreference</c>) is set.
     /// </summary>
     public double? TargetSizeMb { get; set; }
 
     /// <summary>
     /// The quality tier to encode at, one of the accepted tiers
-    /// (<see cref="Definitions.QualityPreferenceDefinitions.Tiers"/>). Exactly
-    /// one of this and the target size (<see cref="TargetSizeMb"/>) is set.
+    /// (<c>QualityPreferenceDefinitions.Tiers</c>). Exactly
+    /// one of this and the target size (<c>TargetSizeMb</c>) is set.
     /// </summary>
     public string? QualityPreference { get; set; }
 
     /// <summary>
     /// The requested resolution label, one of the accepted labels
-    /// (<see cref="Definitions.ResolutionDefinitions.ShortSides"/>). Null
+    /// (<c>ResolutionDefinitions.ShortSides</c>). Null
     /// follows the source, lowered to the configured cap
-    /// (<see cref="Options.EncodingOptions.DefaultMaxShortSide"/>) if it's
+    /// (<c>EncodingOptions.DefaultMaxShortSide</c>) if it's
     /// larger.
     /// </summary>
     public string? Resolution { get; set; }
 
     /// <summary>
     /// The requested output framerate. Null follows the source, lowered to
-    /// the configured cap (<see cref="Options.EncodingOptions.DefaultMaxFps"/>)
+    /// the configured cap (<c>EncodingOptions.DefaultMaxFps</c>)
     /// if it's higher.
     /// </summary>
     public double? Fps { get; set; }
 
     /// <summary>
     /// The libx264 preset, one of the accepted presets
-    /// (<see cref="Definitions.EncoderPresetDefinitions.Presets"/>).
+    /// (<c>EncoderPresetDefinitions.Presets</c>).
     /// A job submitted without one gets the configured default
-    /// (<see cref="Options.EncodingOptions.Preset"/>) at submission, so a
+    /// (<c>EncodingOptions.Preset</c>) at submission, so a
     /// later config change doesn't affect it.
     /// </summary>
     public required string EncoderPreset { get; set; }
