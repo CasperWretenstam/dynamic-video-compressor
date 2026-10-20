@@ -8,7 +8,7 @@ services:
     # Settings override the image's defaults here; see the README's
     # Configuration section.
     # environment:
-    #   - Encoding__Preset=medium
+    #   - OpenApi__Enabled=true
     volumes:
       - dvc-data:/data
     restart: unless-stopped
