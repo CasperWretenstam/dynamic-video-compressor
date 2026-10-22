@@ -5,7 +5,7 @@ namespace Dvc.Api.Models.Definitions;
 /// works, not the quality it aims for: a slower one gives a smaller file at
 /// a quality level (<c>SubmitJobRequest.QualityPreference</c>),
 /// or better quality at a file size
-/// (<c>SubmitJobRequest.TargetSizeMb</c>), at the cost
+/// (<c>SubmitJobRequest.TargetSizeBytes</c>), at the cost
 /// of encode time.
 /// </summary>
 public static class EncoderPresetDefinitions

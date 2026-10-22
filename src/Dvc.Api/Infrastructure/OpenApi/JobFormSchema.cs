@@ -65,9 +65,14 @@ public static class JobFormSchema
                     schema.Enum = [.. parameter.AllowedValues.Select(allowed => (JsonNode)JsonValue.Create(allowed.Value))];
                 }
                 break;
+            // The endpoint rejects zero and below for both.
             case ParameterType.Number:
-                // The endpoint rejects zero and below.
                 schema.Type = JsonSchemaType.Number;
+                schema.ExclusiveMinimum = "0";
+                break;
+            case ParameterType.Integer:
+                schema.Type = JsonSchemaType.Integer;
+                schema.Format = "int64";
                 schema.ExclusiveMinimum = "0";
                 break;
         }

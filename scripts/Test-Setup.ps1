@@ -12,8 +12,9 @@
     Checks that:
       - the service responds, and GET /v1/options describes the job parameters
       - invalid input is rejected with 400 before a job is queued
-      - default, TargetSizeMb, explicit-settings and silent jobs complete with
-        the expected output, and a TargetSizeMb result stays under its target
+      - default, TargetSizeBytes, explicit-settings and silent jobs complete
+        with the expected output, and a TargetSizeBytes result stays under its
+        target
       - a video-less upload fails with an error message, without stalling the queue
       - jobs finish in the order they were submitted
       - DELETE cancels a queued job and removes finished ones
@@ -162,7 +163,9 @@ function Invoke-SetupChecks {
         Test-Rejected -FilePath $textFile -MessagePattern 'Unsupported file extension'
     } | Out-Null
 
-    $targetSizeMb = 1
+    # Decimal 1 MB rather than 1MB (MiB), to check the target is taken as an
+    # exact byte count.
+    $targetSizeBytes = 1000000
     $cases = @(
         [pscustomobject]@{
             Name     = 'Default settings'
@@ -176,13 +179,13 @@ function Invoke-SetupChecks {
             }
         }
         [pscustomobject]@{
-            Name     = "TargetSizeMb = $targetSizeMb"
+            Name     = "TargetSizeBytes = $targetSizeBytes"
             Clip     = $clips.Noisy
-            Fields   = @{ TargetSizeMb = $targetSizeMb }
+            Fields   = @{ TargetSizeBytes = $targetSizeBytes }
             Expected = 'Completed'
             Verify   = {
                 param($job, $video)
-                Assert-True ($video.SizeBytes -le $targetSizeMb * 1MB) "output is $(Format-Megabytes $video.SizeBytes), over the target"
+                Assert-True ($video.SizeBytes -le $targetSizeBytes) "output is $($video.SizeBytes) bytes, over the $targetSizeBytes-byte target"
                 "$(Format-Megabytes $video.SizeBytes) from a $(Format-Megabytes $clips.Noisy.Length) source"
             }
         }

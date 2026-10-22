@@ -131,10 +131,10 @@ public class VideoEncodingCalculatorTests
     [Fact]
     public void BitrateFromTargetSize_ReservesAudioAndAppliesBufferCoefficient()
     {
-        // 10 MB target, 60s duration, 128 kbps audio reserved.
-        // (10 * 1024 * 1024 * 8 / 60 - 128_000) * 0.9 = 1_143_091.2 -> 1_143_091
+        // 10 MiB target, 60s duration, 128 kbps audio reserved.
+        // (10_485_760 * 8 / 60 - 128_000) * 0.9 = 1_143_091.2 -> 1_143_091
         var bitrate = VideoEncodingCalculator.BitrateFromTargetSize(
-            targetSizeMb: 10, durationSeconds: 60, audioBitrateBps: 128_000);
+            targetSizeBytes: 10_485_760, durationSeconds: 60, audioBitrateBps: 128_000);
 
         Assert.Equal(1_143_091, bitrate);
     }
@@ -145,7 +145,7 @@ public class VideoEncodingCalculatorTests
         // Audio budget alone exceeds what the target size affords, so the raw
         // size-based math should bottom out at 0 rather than go negative.
         var bitrate = VideoEncodingCalculator.BitrateFromTargetSize(
-            targetSizeMb: 0.01, durationSeconds: 60, audioBitrateBps: 128_000);
+            targetSizeBytes: 10_000, durationSeconds: 60, audioBitrateBps: 128_000);
 
         Assert.Equal(0, bitrate);
     }
@@ -157,7 +157,7 @@ public class VideoEncodingCalculatorTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             VideoEncodingCalculator.BitrateFromTargetSize(
-                targetSizeMb: 10, durationSeconds: duration, audioBitrateBps: 128_000));
+                targetSizeBytes: 10_485_760, durationSeconds: duration, audioBitrateBps: 128_000));
     }
 
     [Theory]

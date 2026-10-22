@@ -21,7 +21,7 @@ public static class JobUploadReader
         nameof(SubmitJobRequest.QualityPreference),
         nameof(SubmitJobRequest.Resolution),
         nameof(SubmitJobRequest.Fps),
-        nameof(SubmitJobRequest.TargetSizeMb),
+        nameof(SubmitJobRequest.TargetSizeBytes),
         nameof(SubmitJobRequest.EncoderPreset),
     ];
 
@@ -63,7 +63,7 @@ public static class JobUploadReader
         {
             string? originalFileName = null;
             long fileSizeBytes = 0;
-            double? targetSizeMb = null;
+            long? targetSizeBytes = null;
             string? resolution = null;
             double? fps = null;
             string? qualityPreference = null;
@@ -145,12 +145,12 @@ public static class JobUploadReader
                     // and are echoed back in job status.
                     switch (fieldName)
                     {
-                        case nameof(SubmitJobRequest.TargetSizeMb):
-                            if (!TryParseNumber(value, out var parsedTargetSizeMb))
-                                return ExpectedNumber(nameof(SubmitJobRequest.TargetSizeMb));
-                            if (parsedTargetSizeMb <= 0)
-                                return BadRequest("TargetSizeMb must be greater than zero.");
-                            targetSizeMb = parsedTargetSizeMb;
+                        case nameof(SubmitJobRequest.TargetSizeBytes):
+                            if (!TryParseWholeNumber(value, out var parsedTargetSizeBytes))
+                                return ExpectedWholeNumber(nameof(SubmitJobRequest.TargetSizeBytes));
+                            if (parsedTargetSizeBytes <= 0)
+                                return BadRequest("TargetSizeBytes must be greater than zero.");
+                            targetSizeBytes = parsedTargetSizeBytes;
                             break;
                         case nameof(SubmitJobRequest.Fps):
                             if (!TryParseNumber(value, out var parsedFps))
@@ -189,7 +189,7 @@ public static class JobUploadReader
                 InputPath = inputPath,
                 OriginalFileName = originalFileName!,
                 FileSizeBytes = fileSizeBytes,
-                TargetSizeMb = targetSizeMb,
+                TargetSizeBytes = targetSizeBytes,
                 Resolution = resolution,
                 Fps = fps,
                 QualityPreference = qualityPreference,
@@ -219,6 +219,9 @@ public static class JobUploadReader
     private static ProblemHttpResult ExpectedNumber(string field) =>
         BadRequest($"Expected a number for: {field}.");
 
+    private static ProblemHttpResult ExpectedWholeNumber(string field) =>
+        BadRequest($"Expected a whole number for: {field}.");
+
     private static ProblemHttpResult Unsupported(string parameter, string value, IEnumerable<string> allowed) =>
         BadRequest($"Unsupported {parameter} '{value}'. Allowed: {string.Join(", ", allowed)}");
 
@@ -226,6 +229,12 @@ public static class JobUploadReader
     // Rejects NaN/infinity, which ffmpeg can't act on.
     private static bool TryParseNumber(string value, out double result) =>
         double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result) && double.IsFinite(result);
+
+    // Digits with an optional sign: no decimal point, exponent or thousands
+    // separator. The sign is allowed so a negative value gets the "greater
+    // than zero" message rather than a parse error.
+    private static bool TryParseWholeNumber(string value, out long result) =>
+        long.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out result);
 
     private static bool HasFileContentDisposition(ContentDispositionHeaderValue contentDisposition) =>
         contentDisposition.DispositionType.Equals("form-data") &&

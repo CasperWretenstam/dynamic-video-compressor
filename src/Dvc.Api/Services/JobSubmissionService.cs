@@ -27,14 +27,14 @@ public class JobSubmissionService(
             EncoderPreset = request.EncoderPreset ?? encodingOptions.Value.Preset
         };
 
-        if (request.TargetSizeMb is not null)
+        if (request.TargetSizeBytes is not null)
         {
             // A target size takes priority over a quality preference.
-            job.TargetSizeMb = request.TargetSizeMb.Value;
+            job.TargetSizeBytes = request.TargetSizeBytes.Value;
 
             if (request.QualityPreference is not null)
             {
-                job.Warning = "QualityPreference is ignored when TargetSizeMb is set explicitly.";
+                job.Warning = "QualityPreference is ignored when TargetSizeBytes is set explicitly.";
             }
         }
         else
@@ -48,8 +48,8 @@ public class JobSubmissionService(
         // Compression runs out-of-band in JobProcessingWorker.
         jobQueue.Enqueue(job.Id);
 
-        var target = job.TargetSizeMb is { } targetSizeMb
-            ? $"target {targetSizeMb:F2}MB"
+        var target = job.TargetSizeBytes is { } targetSizeBytes
+            ? $"target {targetSizeBytes} bytes"
             : $"preference {job.QualityPreference}";
         logger.LogInformation(
             "Queued job {JobId} ({FileName}, {FileSizeBytes} bytes, {Target})",

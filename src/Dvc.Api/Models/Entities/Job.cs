@@ -37,15 +37,15 @@ public class Job
     public DateTimeOffset? CompletedAt { get; set; }
 
     /// <summary>
-    /// The file size to stay under, in MB. Exactly one of this and the
+    /// The file size to stay under, in bytes. Exactly one of this and the
     /// quality tier (<c>QualityPreference</c>) is set.
     /// </summary>
-    public double? TargetSizeMb { get; set; }
+    public long? TargetSizeBytes { get; set; }
 
     /// <summary>
     /// The quality tier to encode at, one of the accepted tiers
     /// (<c>QualityPreferenceDefinitions.Tiers</c>). Exactly
-    /// one of this and the target size (<c>TargetSizeMb</c>) is set.
+    /// one of this and the target size (<c>TargetSizeBytes</c>) is set.
     /// </summary>
     public string? QualityPreference { get; set; }
 

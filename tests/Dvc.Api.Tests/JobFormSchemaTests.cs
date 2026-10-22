@@ -67,14 +67,22 @@ public class JobFormSchemaTests
         Assert.Equal("veryfast", Property(form, nameof(SubmitJobRequest.EncoderPreset)).Default!.GetValue<string>());
     }
 
-    [Theory]
-    [InlineData(nameof(SubmitJobRequest.Fps))]
-    [InlineData(nameof(SubmitJobRequest.TargetSizeMb))]
-    public void Build_DescribesNumbersAsGreaterThanZero(string field)
+    [Fact]
+    public void Build_DescribesFpsAsNumberGreaterThanZero()
     {
-        var property = Property(BuildFormSchema(new EncodingOptions()), field);
+        var property = Property(BuildFormSchema(new EncodingOptions()), nameof(SubmitJobRequest.Fps));
 
         Assert.Equal(JsonSchemaType.Number, property.Type);
+        Assert.Equal("0", property.ExclusiveMinimum);
+    }
+
+    [Fact]
+    public void Build_DescribesTargetSizeAsInt64GreaterThanZero()
+    {
+        var property = Property(BuildFormSchema(new EncodingOptions()), nameof(SubmitJobRequest.TargetSizeBytes));
+
+        Assert.Equal(JsonSchemaType.Integer, property.Type);
+        Assert.Equal("int64", property.Format);
         Assert.Equal("0", property.ExclusiveMinimum);
     }
 }

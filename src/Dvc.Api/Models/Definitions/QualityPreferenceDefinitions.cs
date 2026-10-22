@@ -6,7 +6,7 @@ namespace Dvc.Api.Models.Definitions;
 /// libx264 CRF (constant rate factor) each encodes at. CRF holds a consistent
 /// perceived quality and lets the bitrate follow the content. Not used when
 /// a job aims for a file size
-/// (<c>SubmitJobRequest.TargetSizeMb</c>).
+/// (<c>SubmitJobRequest.TargetSizeBytes</c>).
 /// </summary>
 public static class QualityPreferenceDefinitions
 {

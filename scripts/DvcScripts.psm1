@@ -86,7 +86,7 @@ function New-DvcTestClip {
 
     .PARAMETER Noisy
         Adds heavy per-frame noise and a high bitrate, so the clip is large and
-        hard to compress: a meaningful input for a TargetSizeMb job.
+        hard to compress: a meaningful input for a job with a target size.
 
     .PARAMETER NoAudio
         Video only.
@@ -336,7 +336,7 @@ function Submit-DvcJob {
         GET /v1/options lists them all.
 
     .EXAMPLE
-        Submit-DvcJob -FilePath ./clip.mp4 -Fields @{ TargetSizeMb = 10 }
+        Submit-DvcJob -FilePath ./clip.mp4 -Fields @{ TargetSizeBytes = 10000000 }
     #>
     param(
         [Parameter(Mandatory)][string]$FilePath,

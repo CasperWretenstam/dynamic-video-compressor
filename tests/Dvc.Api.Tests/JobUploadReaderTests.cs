@@ -63,7 +63,7 @@ public class JobUploadReaderTests : IDisposable
             { new StringContent("higherquality"), "qualityPreference" },
             { new StringContent("720P"), "Resolution" },
             { new StringContent(" 29.97 "), "Fps" },
-            { new StringContent("10.5"), "TargetSizeMb" },
+            { new StringContent("10000000"), "targetSizeBytes" },
             { new StringContent("VeryFast"), "EncoderPreset" },
             { Video([9, 8, 7]), "file", "clip.mp4" },
         });
@@ -73,7 +73,7 @@ public class JobUploadReaderTests : IDisposable
         Assert.Equal("HigherQuality", request.QualityPreference);
         Assert.Equal("720p", request.Resolution);
         Assert.Equal(29.97, request.Fps);
-        Assert.Equal(10.5, request.TargetSizeMb);
+        Assert.Equal(10_000_000, request.TargetSizeBytes);
         Assert.Equal("veryfast", request.EncoderPreset);
         Assert.Equal("clip.mp4", request.OriginalFileName);
         Assert.Equal(3, request.FileSizeBytes);
@@ -124,8 +124,13 @@ public class JobUploadReaderTests : IDisposable
     }
 
     [Theory]
-    [InlineData("TargetSizeMb", "ten", "Expected a number for: TargetSizeMb")]
-    [InlineData("TargetSizeMb", "0", "TargetSizeMb must be greater than zero")]
+    [InlineData("TargetSizeBytes", "ten", "Expected a whole number for: TargetSizeBytes")]
+    [InlineData("TargetSizeBytes", "10.5", "Expected a whole number for: TargetSizeBytes")]
+    [InlineData("TargetSizeBytes", "1e7", "Expected a whole number for: TargetSizeBytes")]
+    [InlineData("TargetSizeBytes", "10,000,000", "Expected a whole number for: TargetSizeBytes")]
+    [InlineData("TargetSizeBytes", "99999999999999999999", "Expected a whole number for: TargetSizeBytes")]
+    [InlineData("TargetSizeBytes", "0", "TargetSizeBytes must be greater than zero")]
+    [InlineData("TargetSizeBytes", "-1", "TargetSizeBytes must be greater than zero")]
     [InlineData("Fps", "NaN", "Expected a number for: Fps")]
     [InlineData("Fps", "29,97", "Expected a number for: Fps")]
     [InlineData("Fps", "-30", "Fps must be greater than zero")]
