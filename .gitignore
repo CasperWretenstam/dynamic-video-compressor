@@ -373,6 +373,7 @@ src/Dvc.Api/Storage/
 
 # Editor settings
 .vscode/
+.idea/
 
 # Claude Code worktrees
 .claude/worktrees/
