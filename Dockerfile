@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY DynamicVideoCompressor.slnx .
+COPY DynamicVideoCompressor.slnx Directory.Build.props Directory.Packages.props ./
 COPY src/Dvc.Api/Dvc.Api.csproj src/Dvc.Api/
 RUN dotnet restore src/Dvc.Api/Dvc.Api.csproj
 
