@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Settings every project in the solution shares. MSBuild imports the
+       nearest Directory.Build.props above each project and stops there, so a
+       project folder must not get one of its own unless it imports this one. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
