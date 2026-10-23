@@ -14,7 +14,7 @@ namespace Dvc.Api.Models.DTOs.Responses;
 /// </param>
 /// <param name="Warning">
 /// How the job differs from what was requested, without having stopped it:
-/// for example a <c>QualityPreference</c> ignored because <c>TargetSizeMb</c>
+/// for example a <c>QualityPreference</c> ignored because <c>TargetSizeBytes</c>
 /// was also set, or an output that comes in under its target size. Null when
 /// there's nothing to report.
 /// </param>
@@ -44,7 +44,7 @@ public sealed record JobStatusResponse(
         job.Warning,
         job.CreatedAt,
         job.CompletedAt,
-        new JobSettings(job.QualityPreference, job.TargetSizeMb, job.Resolution, job.Fps, job.EncoderPreset),
+        new JobSettings(job.QualityPreference, job.TargetSizeBytes, job.Resolution, job.Fps, job.EncoderPreset),
         job.OutputWidth is { } width && job.OutputHeight is { } height
             ? new JobOutput(width, height, job.OutputFps)
             : null);
@@ -56,11 +56,11 @@ public sealed record JobStatusResponse(
 /// </summary>
 /// <param name="QualityPreference">
 /// The quality level the video is encoded at. Null when the job aims for a
-/// file size (<c>targetSizeMb</c>) instead.
+/// file size (<c>targetSizeBytes</c>) instead.
 /// </param>
-/// <param name="TargetSizeMb">
-/// The file size, in MB, the output stays under. Null when the job encodes
-/// at a quality level (<c>qualityPreference</c>) instead.
+/// <param name="TargetSizeBytes">
+/// The file size, in bytes, the output stays under. Null when the job
+/// encodes at a quality level (<c>qualityPreference</c>) instead.
 /// </param>
 /// <param name="Resolution">
 /// The requested resolution. Null when it follows the video's own; the
@@ -75,7 +75,7 @@ public sealed record JobStatusResponse(
 /// </param>
 public sealed record JobSettings(
     string? QualityPreference,
-    double? TargetSizeMb,
+    long? TargetSizeBytes,
     string? Resolution,
     double? Fps,
     string EncoderPreset);

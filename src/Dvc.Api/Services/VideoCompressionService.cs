@@ -107,7 +107,7 @@ public class VideoCompressionService(
 
         // A quality tier is a constant-quality encode with no size to hit,
         // so the bitrate targeting and size correction below don't apply.
-        if (job.TargetSizeMb is not { } requestedSizeMb)
+        if (job.TargetSizeBytes is not { } requestedSizeBytes)
         {
             var crf = QualityPreferenceDefinitions.ResolveCrf(job.QualityPreference!, width, height);
             var crfMaxRateBps = VideoEncodingCalculator.CrfMaxRateBps(width, height, effectiveFps, sourceVideoBitrateBps);
@@ -131,15 +131,16 @@ public class VideoCompressionService(
                 "Use a quality preference instead, or re-export the source.");
         }
 
-        var rawBitrateBps = VideoEncodingCalculator.BitrateFromTargetSize(requestedSizeMb, durationSeconds, audioBitrateBps);
+        var rawBitrateBps = VideoEncodingCalculator.BitrateFromTargetSize(requestedSizeBytes, durationSeconds, audioBitrateBps);
+        var requestedSize = FormatBytes(requestedSizeBytes);
 
         if (rawBitrateBps < MinEncodableVideoBitrateBps)
         {
             throw new JobFailedException(audioBitrateBps > 0
-                ? $"The requested {requestedSizeMb:F2}MB target is too small for this {durationSeconds:F1}s video: " +
+                ? $"The requested target of {requestedSize} is too small for this {durationSeconds:F1}s video: " +
                   $"the audio track alone (~{audioBitrateBps / 1000}kbps) needs nearly all of it, leaving no room " +
                   "for video. Try a larger target size."
-                : $"The requested {requestedSizeMb:F2}MB target is too small for this {durationSeconds:F1}s video " +
+                : $"The requested target of {requestedSize} is too small for this {durationSeconds:F1}s video " +
                   "to encode at all. Try a larger target size.");
         }
 
@@ -152,7 +153,7 @@ public class VideoCompressionService(
             // Appended rather than overwritten, since the job may already
             // carry a warning from submission.
             var capWarning =
-                $"The {requestedSizeMb:F2}MB target allows ~{rawBitrateBps / 1000}kbps of video, more than the source's " +
+                $"The target of {requestedSize} allows ~{rawBitrateBps / 1000}kbps of video, more than the source's " +
                 $"own ~{targetBitrateBps / 1000}kbps. Encoded at the source's bitrate instead - going above it can't " +
                 "add quality, only inflate the file - so the output will be smaller than the target.";
             job.Warning = job.Warning is null ? capWarning : $"{job.Warning} {capWarning}";
@@ -161,7 +162,7 @@ public class VideoCompressionService(
 
         var twoPass = options.TwoPass;
 
-        double actualSizeMb;
+        long actualSizeBytes;
         var attempt = 0;
         while (true)
         {
@@ -184,9 +185,9 @@ public class VideoCompressionService(
                 await EncodeOnePassAsync(job, outputPath, settings, targetBitrateBps, maxRateBps, bufSizeBps, cancellationToken);
             }
 
-            actualSizeMb = new FileInfo(outputPath).Length / 1024.0 / 1024.0;
+            actualSizeBytes = new FileInfo(outputPath).Length;
 
-            if (actualSizeMb <= requestedSizeMb)
+            if (actualSizeBytes <= requestedSizeBytes)
             {
                 break;
             }
@@ -194,29 +195,29 @@ public class VideoCompressionService(
             if (attempt > MaxSizeCorrectionAttempts)
             {
                 throw new JobFailedException(
-                    $"Could not encode the video within the requested {requestedSizeMb:F2}MB target after " +
-                    $"{attempt} attempts (last attempt produced {actualSizeMb:F2}MB). Try a lower resolution, " +
-                    "fps, or a larger target size.");
+                    $"Could not encode the video within the requested target of {requestedSize} after " +
+                    $"{attempt} attempts (last attempt produced {FormatBytes(actualSizeBytes)}). Try a lower " +
+                    "resolution, fps, or a larger target size.");
             }
 
             // Lower the bitrate by the measured overshoot plus a margin. It
             // only goes down, so the source cap still holds. If nothing is
             // left, the encoder can't get small enough at this resolution/fps.
-            var overshootBps = (long)((actualSizeMb - requestedSizeMb) * 1024 * 1024 * 8 / durationSeconds);
+            var overshootBps = (long)((actualSizeBytes - requestedSizeBytes) * 8.0 / durationSeconds);
             targetBitrateBps -= (long)(overshootBps * OvershootCorrectionMargin);
 
             if (targetBitrateBps < MinEncodableVideoBitrateBps)
             {
                 throw new JobFailedException(
-                    $"Could not encode the video within the requested {requestedSizeMb:F2}MB target at " +
+                    $"Could not encode the video within the requested target of {requestedSize} at " +
                     $"{outputDescription}: even the lowest bitrate the encoder can manage there came out at " +
-                    $"{actualSizeMb:F2}MB. Try a lower resolution, fps, or a larger target size.");
+                    $"{FormatBytes(actualSizeBytes)}. Try a lower resolution, fps, or a larger target size.");
             }
 
             logger.LogWarning(
-                "Job {JobId}: output size ({ActualSizeMb:F2}MB) exceeded the requested target " +
-                "({RequestedSizeMb:F2}MB); retrying at a reduced bitrate (attempt {NextAttempt}/{TotalAttempts})",
-                job.Id, actualSizeMb, requestedSizeMb, attempt + 1, MaxSizeCorrectionAttempts + 1);
+                "Job {JobId}: output size ({ActualSizeBytes} bytes) exceeded the requested target " +
+                "({RequestedSizeBytes} bytes); retrying at a reduced bitrate (attempt {NextAttempt}/{TotalAttempts})",
+                job.Id, actualSizeBytes, requestedSizeBytes, attempt + 1, MaxSizeCorrectionAttempts + 1);
         }
 
         // Recorded only on success, since a warning means "completed, but
@@ -224,8 +225,8 @@ public class VideoCompressionService(
         if (attempt > 1)
         {
             var correctionWarning =
-                $"Output size initially exceeded the requested {requestedSizeMb:F2}MB target; corrected after " +
-                $"{attempt - 1} additional encode(s) to {actualSizeMb:F2}MB.";
+                $"Output size initially exceeded the requested target of {requestedSize}; corrected after " +
+                $"{attempt - 1} additional encode(s) to {FormatBytes(actualSizeBytes)}.";
             job.Warning = job.Warning is null ? correctionWarning : $"{job.Warning} {correctionWarning}";
             logger.LogWarning("Job {JobId}: {Warning}", job.Id, correctionWarning);
         }
@@ -327,6 +328,11 @@ public class VideoCompressionService(
 
         return options;
     }
+
+    // An exact byte count with thousands separators, e.g. "10,000,000 bytes",
+    // the same on every server locale.
+    private static string FormatBytes(long bytes) =>
+        $"{bytes.ToString("N0", CultureInfo.InvariantCulture)} bytes";
 
     // AAC at the resolved bitrate, or no audio track for a silent source.
     private static FFMpegArgumentOptions ApplyAudioSettings(FFMpegArgumentOptions options, OutputSettings settings) =>

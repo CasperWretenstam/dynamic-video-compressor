@@ -58,7 +58,7 @@ public static class OptionsEndpoints
                 Type: ParameterType.String,
                 Required: false,
                 Description: "The visual quality to aim for. Output size follows the content rather than a target, " +
-                    "so simple footage shrinks far more than complex footage. Ignored when TargetSizeMb is set.",
+                    "so simple footage shrinks far more than complex footage. Ignored when TargetSizeBytes is set.",
                 Default: QualityPreferenceDefinitions.Default,
                 DefaultDescription: null,
                 AllowedValues: QualityPreferenceDefinitions.Tiers
@@ -88,12 +88,13 @@ public static class OptionsEndpoints
                 DefaultDescription: fpsDefault,
                 AllowedValues: null),
             new ParameterDescription(
-                Name: nameof(SubmitJobRequest.TargetSizeMb),
+                Name: nameof(SubmitJobRequest.TargetSizeBytes),
                 Level: ParameterLevel.Advanced,
-                Type: ParameterType.Number,
+                Type: ParameterType.Integer,
                 Required: false,
-                Description: "Compress to at most this many MB, e.g. to fit an upload limit. Takes priority over " +
-                    "QualityPreference: quality follows from the size instead of the other way round.",
+                Description: "Compress to at most this many bytes, e.g. to fit an upload limit: 10 MB is 10000000, " +
+                    "10 MiB is 10485760. Takes priority over QualityPreference: quality follows from the size " +
+                    "instead of the other way round.",
                 Default: null,
                 DefaultDescription: "No size target; QualityPreference applies.",
                 AllowedValues: null),
@@ -104,7 +105,7 @@ public static class OptionsEndpoints
                 Required: false,
                 Description: "How much effort the encoder spends finding redundancy, independent of quality. A slower " +
                     "preset gives a smaller file at a given QualityPreference, or better quality at a given " +
-                    "TargetSizeMb, at the cost of encode time.",
+                    "TargetSizeBytes, at the cost of encode time.",
                 Default: encodingOptions.Preset,
                 DefaultDescription: null,
                 AllowedValues: EncoderPresetDefinitions.Presets

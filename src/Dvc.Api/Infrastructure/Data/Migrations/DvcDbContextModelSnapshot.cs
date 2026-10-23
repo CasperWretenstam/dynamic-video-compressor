@@ -64,8 +64,8 @@ namespace Dvc.Api.Infrastructure.Data.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
-                    b.Property<double?>("TargetSizeMb")
-                        .HasColumnType("REAL");
+                    b.Property<long?>("TargetSizeBytes")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Warning")
                         .HasColumnType("TEXT");

@@ -16,11 +16,11 @@ public class SubmitJobRequest
     public required long FileSizeBytes { get; set; }
 
     /// <summary>
-    /// Compress to at most this many MB, e.g. to fit an upload limit. Takes
-    /// priority over a quality tier (<c>QualityPreference</c>) when
+    /// Compress to at most this many bytes, e.g. to fit an upload limit.
+    /// Takes priority over a quality tier (<c>QualityPreference</c>) when
     /// both are set.
     /// </summary>
-    public double? TargetSizeMb { get; set; }
+    public long? TargetSizeBytes { get; set; }
 
     /// <summary>
     /// One of the accepted resolution labels
@@ -36,7 +36,7 @@ public class SubmitJobRequest
     /// One of the accepted quality tiers
     /// (<c>QualityPreferenceDefinitions.Tiers</c>), letting
     /// file size follow the content. Ignored when a target size
-    /// (<c>TargetSizeMb</c>) is set; when neither is, the default tier
+    /// (<c>TargetSizeBytes</c>) is set; when neither is, the default tier
     /// (<c>QualityPreferenceDefinitions.Default</c>) applies.
     /// </summary>
     public string? QualityPreference { get; set; }

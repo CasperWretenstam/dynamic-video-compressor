@@ -12,7 +12,7 @@ public class EncodingOptions
 
     /// <summary>
     /// Whether jobs aiming for a file size
-    /// (<c>SubmitJobRequest.TargetSizeMb</c>) encode in
+    /// (<c>SubmitJobRequest.TargetSizeBytes</c>) encode in
     /// two passes: slower, but the encoder sees the whole clip's complexity
     /// up front. Quality-tier jobs always use a single pass.
     /// </summary>

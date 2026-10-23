@@ -22,15 +22,16 @@ public enum ParameterLevel
 
 /// <summary>
 /// The kind of value a parameter takes: <c>File</c> for the uploaded video,
-/// <c>String</c> for text (often limited to a set of allowed values), or
+/// <c>String</c> for text (often limited to a set of allowed values),
 /// <c>Number</c> for a decimal number, written with a <c>.</c> as the decimal
-/// separator.
+/// separator, or <c>Integer</c> for a whole number.
 /// </summary>
 public enum ParameterType
 {
     File,
     String,
-    Number
+    Number,
+    Integer
 }
 
 /// <summary>One field <c>POST /v1/jobs</c> accepts.</summary>
