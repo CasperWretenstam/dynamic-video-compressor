@@ -33,16 +33,15 @@ public static class VideoEncodingCalculator
     /// at the source's own bitrate (<c>CapAtSourceBitrate</c>) before
     /// encoding.
     /// </summary>
-    /// <param name="targetSizeMb">Desired output file size, in MB.</param>
+    /// <param name="targetSizeBytes">Desired output file size, in bytes.</param>
     /// <param name="durationSeconds">Duration of the source video, in seconds.</param>
     /// <param name="audioBitrateBps">Audio bitrate to reserve, in bps.</param>
-    public static long BitrateFromTargetSize(double targetSizeMb, double durationSeconds, long audioBitrateBps)
+    public static long BitrateFromTargetSize(long targetSizeBytes, double durationSeconds, long audioBitrateBps)
     {
         if (durationSeconds <= 0)
             throw new ArgumentOutOfRangeException(nameof(durationSeconds), "Duration must be greater than zero.");
 
-        var targetSizeBytes = targetSizeMb * 1024 * 1024;
-        var targetBitrate = targetSizeBytes * 8 / durationSeconds;
+        var targetBitrate = targetSizeBytes * 8.0 / durationSeconds;
         var videoBitrate = Math.Max(0, targetBitrate - audioBitrateBps) * BufferCoefficient;
 
         return (long)videoBitrate;

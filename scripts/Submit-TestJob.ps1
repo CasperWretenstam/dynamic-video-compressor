@@ -6,7 +6,7 @@
 .DESCRIPTION
     Sends a video to POST /v1/jobs with whichever parameters are given, exactly
     as given, so it can also be used to see how the service handles a
-    combination (e.g. both TargetSizeMb and QualityPreference). With no
+    combination (e.g. both TargetSizeBytes and QualityPreference). With no
     -FilePath, generates a small test clip with ffmpeg first.
 
     By default it returns as soon as the job is queued. -Wait polls until the
@@ -30,7 +30,7 @@
     ./scripts/Submit-TestJob.ps1
 
 .EXAMPLE
-    ./scripts/Submit-TestJob.ps1 -FilePath ./clip.mov -TargetSizeMb 10 -OutFile ./clip-10mb.mp4 -Remove
+    ./scripts/Submit-TestJob.ps1 -FilePath ./clip.mov -TargetSizeBytes 10000000 -OutFile ./clip-10mb.mp4 -Remove
 
 .EXAMPLE
     ./scripts/Submit-TestJob.ps1 -Resolution 720p -Fps 29.97 -EncoderPreset veryfast -Wait
@@ -38,7 +38,7 @@
 param(
     [string]$FilePath,
     [string]$QualityPreference,
-    [double]$TargetSizeMb,
+    [long]$TargetSizeBytes,
     [string]$Resolution,
     [double]$Fps,
     [string]$EncoderPreset,
@@ -56,7 +56,7 @@ Import-Module (Join-Path $PSScriptRoot 'DvcScripts.psm1') -Force
 # Only the parameters actually passed are sent, so everything else falls
 # back to the service's defaults.
 $fields = [ordered]@{}
-foreach ($name in 'QualityPreference', 'TargetSizeMb', 'Resolution', 'Fps', 'EncoderPreset') {
+foreach ($name in 'QualityPreference', 'TargetSizeBytes', 'Resolution', 'Fps', 'EncoderPreset') {
     if ($PSBoundParameters.ContainsKey($name)) {
         $fields[$name] = $PSBoundParameters[$name]
     }

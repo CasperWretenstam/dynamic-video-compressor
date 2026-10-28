@@ -30,7 +30,7 @@ curl http://localhost:5155/health
   ```json
   {
     "status": "Completed",
-    "settings": { "qualityPreference": "Balanced", "targetSizeMb": null, "resolution": null, "fps": null, "encoderPreset": "slow" },
+    "settings": { "qualityPreference": "Balanced", "targetSizeBytes": null, "resolution": null, "fps": null, "encoderPreset": "slow" },
     "output": { "width": 1080, "height": 1920, "fps": 30 }
   }
   ```
@@ -45,7 +45,7 @@ Every error response is [problem details](https://www.rfc-editor.org/rfc/rfc9457
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
   "title": "Bad Request",
   "status": 400,
-  "detail": "Unknown field 'Preset'. Accepted: QualityPreference, Resolution, Fps, TargetSizeMb, EncoderPreset",
+  "detail": "Unknown field 'Preset'. Accepted: QualityPreference, Resolution, Fps, TargetSizeBytes, EncoderPreset",
   "traceId": "00-aca1eb2c52f416c942eaabffa9f4b27e-16a6f74f0742e535-00"
 }
 ```
@@ -81,13 +81,13 @@ Only `file` is required. Leaving everything else out is the intended default: th
 
 | Parameter | Values | When omitted |
 |---|---|---|
-| `TargetSizeMb` | Any number above 0 | No size target |
+| `TargetSizeBytes` | Any whole number above 0 | No size target |
 | `EncoderPreset` | `ultrafast` … `medium` … `slow` … `veryslow`, `placebo` | `Encoding__Preset` (`slow` by default) |
 
-- `TargetSizeMb` compresses to at most this many MB, e.g. to fit an upload limit. It takes priority over `QualityPreference`: quality follows from the size instead.
-- `EncoderPreset` is how much effort the encoder spends finding redundancy, independent of quality. Slower presets give smaller files at a given `QualityPreference`, or better quality at a given `TargetSizeMb`, at the cost of encode time. `slow` is roughly 1.5–2× `medium`'s encode time for files several percent smaller; past `slower`, the gains are small.
+- `TargetSizeBytes` compresses to at most this many bytes, e.g. to fit an upload limit. It takes priority over `QualityPreference`: quality follows from the size instead. Converting from the unit your limit is given in is up to you: 10 MB is `10000000`, 10 MiB is `10485760`.
+- `EncoderPreset` is how much effort the encoder spends finding redundancy, independent of quality. Slower presets give smaller files at a given `QualityPreference`, or better quality at a given `TargetSizeBytes`, at the cost of encode time. `slow` is roughly 1.5–2× `medium`'s encode time for files several percent smaller; past `slower`, the gains are small.
 
-Field names are matched ignoring case, so `encoderPreset` works too. Invalid values (an unknown `EncoderPreset`, `Fps=abc`, `Fps=0`), unknown field names (a typo like `Resoluton`) and a field sent more than once (including `Resolution` and `resolution` together) are rejected with `400 Bad Request` and a message saying what's wrong.
+Field names are matched ignoring case, so `encoderPreset` works too. Invalid values (an unknown `EncoderPreset`, `Fps=abc`, `Fps=0`, `TargetSizeBytes=10.5`), unknown field names (a typo like `Resoluton`) and a field sent more than once (including `Resolution` and `resolution` together) are rejected with `400 Bad Request` and a message saying what's wrong.
 
 **Send the parameters before `file`.** Each field is validated the moment it arrives, so a bad value is rejected before the video starts uploading. Fields sent after the file are still validated, just only once the whole upload has been received. Uploads are capped at 2GB: a request whose `Content-Length` declares more is rejected with `413 Payload Too Large` before any of it is read.
 
@@ -122,7 +122,7 @@ The image's defaults work as-is, so no configuration is required to get started.
 | `Storage__InputDirectory` | `/data/Storage/Input` | Uploaded files, deleted once each job finishes |
 | `Storage__OutputDirectory` | `/data/Storage/Output` | Compressed output files, kept until the job is deleted (see Limitations) |
 | `Database__AutoMigrate` | `true` | Applies pending EF Core migrations on startup |
-| `Encoding__TwoPass` | `true` | `TargetSizeMb` jobs only: two-pass encoding is slower but hits the target bitrate more accurately; set to `false` for faster, less precise encodes. `QualityPreference` jobs are always single-pass |
+| `Encoding__TwoPass` | `true` | `TargetSizeBytes` jobs only: two-pass encoding is slower but hits the target bitrate more accurately; set to `false` for faster, less precise encodes. `QualityPreference` jobs are always single-pass |
 | `Encoding__Preset` | `slow` | Encoder preset for jobs that don't set `EncoderPreset`. Drop to `medium` or `fast` if the queue backs up |
 | `Encoding__DefaultMaxShortSide` | `1080` | Short-side cap (px) for jobs that don't set `Resolution`. Set to empty (`Encoding__DefaultMaxShortSide=`) to keep source resolution |
 | `Encoding__DefaultMaxFps` | `30` | Framerate cap for jobs that don't set `Fps`. Set to empty to keep source framerate |

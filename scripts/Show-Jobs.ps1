@@ -52,7 +52,7 @@ SELECT * FROM (
                WHEN 3 THEN 'Failed'
                ELSE 'Unknown'
            END AS Status,
-           COALESCE(QualityPreference, TargetSizeMb || 'MB') AS Target,
+           COALESCE(QualityPreference, TargetSizeBytes || ' bytes') AS Target,
            EncoderPreset,
            OutputWidth || 'x' || OutputHeight AS Output,
            OutputFps,
