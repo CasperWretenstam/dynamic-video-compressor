@@ -1,4 +1,4 @@
-using Dvc.Api.Models.Definitions;
+using Dvc.Core.Definitions;
 
 namespace Dvc.Api.Models.Options;
 

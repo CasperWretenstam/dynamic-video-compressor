@@ -1,12 +1,10 @@
-namespace Dvc.Api.Models.Definitions;
+namespace Dvc.Core.Definitions;
 
 /// <summary>
-/// The quality tiers the API accepts
-/// (<c>SubmitJobRequest.QualityPreference</c>) and the
-/// libx264 CRF (constant rate factor) each encodes at. CRF holds a consistent
-/// perceived quality and lets the bitrate follow the content. Not used when
-/// a job aims for a file size
-/// (<c>SubmitJobRequest.TargetSizeBytes</c>).
+/// The quality tiers the engine accepts and the libx264 CRF (constant rate
+/// factor) each encodes at. CRF holds a consistent perceived quality and
+/// lets the bitrate follow the content. Not used by an encode that aims for
+/// a target file size instead.
 /// </summary>
 public static class QualityPreferenceDefinitions
 {
@@ -15,8 +13,8 @@ public static class QualityPreferenceDefinitions
     public const string HigherQuality = "HigherQuality";
 
     /// <summary>
-    /// The tier used when a job sets neither a quality preference nor a
-    /// target size.
+    /// The tier to use when an encode is given neither a quality tier nor a
+    /// target file size.
     /// </summary>
     public const string Default = Balanced;
 
@@ -24,8 +22,8 @@ public static class QualityPreferenceDefinitions
 
     /// <summary>
     /// Each accepted tier with its CRF at 1080p, adjusted for other output
-    /// sizes on resolving (<c>ResolveCrf</c>), and a description for
-    /// clients. Lower CRF is higher quality; each +6 roughly halves the bitrate.
+    /// sizes on resolving (<c>ResolveCrf</c>), and a description to show
+    /// users. Lower CRF is higher quality; each +6 roughly halves the bitrate.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, Tier> Tiers = new Dictionary<string, Tier>(StringComparer.OrdinalIgnoreCase)
     {

@@ -1,4 +1,4 @@
-namespace Dvc.Api.Services;
+namespace Dvc.Core.Compression;
 
 /// <summary>
 /// Bitrate, dimension and framerate math for encoding, as pure functions.

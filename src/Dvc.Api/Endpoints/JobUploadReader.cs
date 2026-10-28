@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
+using Dvc.Core.Definitions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
@@ -95,10 +96,10 @@ public static class JobUploadReader
                     }
 
                     var extension = Path.GetExtension(originalFileName);
-                    if (string.IsNullOrEmpty(extension) || !UploadDefinitions.AllowedExtensions.Contains(extension))
+                    if (string.IsNullOrEmpty(extension) || !VideoFileDefinitions.SupportedExtensions.Contains(extension))
                     {
                         return BadRequest(
-                            $"Unsupported file extension '{extension}'. Allowed: {string.Join(", ", UploadDefinitions.AllowedExtensions)}");
+                            $"Unsupported file extension '{extension}'. Allowed: {string.Join(", ", VideoFileDefinitions.SupportedExtensions)}");
                     }
 
                     Directory.CreateDirectory(inputDirectory);

@@ -1,4 +1,4 @@
-namespace Dvc.Api.Models.Definitions;
+namespace Dvc.Core.Definitions;
 
 public static class DefinitionTableExtensions
 {

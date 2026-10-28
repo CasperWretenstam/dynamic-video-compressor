@@ -1,25 +1,22 @@
-namespace Dvc.Api.Models.Definitions;
+namespace Dvc.Core.Definitions;
 
 /// <summary>
-/// The libx264 presets the API accepts. A preset sets how hard the encoder
-/// works, not the quality it aims for: a slower one gives a smaller file at
-/// a quality level (<c>SubmitJobRequest.QualityPreference</c>),
-/// or better quality at a file size
-/// (<c>SubmitJobRequest.TargetSizeBytes</c>), at the cost
-/// of encode time.
+/// The libx264 presets the engine accepts. A preset sets how hard the
+/// encoder works, not the quality it aims for: a slower one gives a smaller
+/// file at a quality tier (<c>QualityPreferenceDefinitions.Tiers</c>), or
+/// better quality at a target file size, at the cost of encode time.
 /// </summary>
 public static class EncoderPresetDefinitions
 {
     /// <summary>
-    /// The preset used when none is configured
-    /// (<c>EncodingOptions.Preset</c>). Its extra encode time
+    /// The preset to fall back on when none is chosen. Its extra encode time
     /// is paid once; the storage savings last as long as the file.
     /// </summary>
     public const string Default = "slow";
 
     /// <summary>
     /// Each accepted preset, fastest first, with a description of its
-    /// speed/size tradeoff for clients.
+    /// speed/size tradeoff to show users.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> Presets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {

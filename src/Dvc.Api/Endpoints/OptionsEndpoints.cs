@@ -1,8 +1,8 @@
 using System.Globalization;
-using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
 using Dvc.Api.Models.DTOs.Responses;
 using Dvc.Api.Models.Options;
+using Dvc.Core.Definitions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 
@@ -48,7 +48,7 @@ public static class OptionsEndpoints
                 Level: ParameterLevel.Standard,
                 Type: ParameterType.File,
                 Required: true,
-                Description: $"The video to compress. Accepted extensions: {string.Join(", ", UploadDefinitions.AllowedExtensions)}.",
+                Description: $"The video to compress. Accepted extensions: {string.Join(", ", VideoFileDefinitions.SupportedExtensions)}.",
                 Default: null,
                 DefaultDescription: null,
                 AllowedValues: null),

@@ -1,9 +1,9 @@
 using Dvc.Api.Infrastructure;
 using Dvc.Api.Infrastructure.Data;
-using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
 using Dvc.Api.Models.Entities;
 using Dvc.Api.Models.Options;
+using Dvc.Core.Definitions;
 using Microsoft.Extensions.Options;
 
 namespace Dvc.Api.Services;

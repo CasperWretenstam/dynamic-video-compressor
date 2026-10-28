@@ -1,8 +1,8 @@
 using Dvc.Api.Endpoints;
 using Dvc.Api.Infrastructure.OpenApi;
-using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.DTOs.Requests;
 using Dvc.Api.Models.Options;
+using Dvc.Core.Definitions;
 using Microsoft.OpenApi;
 
 namespace Dvc.Api.Tests;

@@ -1,14 +1,13 @@
-namespace Dvc.Api.Models.Definitions;
+namespace Dvc.Core.Definitions;
 
 /// <summary>
-/// The resolution labels the API accepts. A label sets the output's short
+/// The resolution labels the engine accepts. A label sets the output's short
 /// side and the long side follows the source's aspect ratio, so "1080p" is
 /// 1920x1080 for landscape 16:9 and 1080x1920 for portrait.
 /// </summary>
 /// <remarks>
 /// The short side keeps a label's meaning consistent for any orientation or
-/// aspect ratio, so a caller can pick one without knowing the source's
-/// shape.
+/// aspect ratio, so one can be picked without knowing the source's shape.
 /// </remarks>
 public static class ResolutionDefinitions
 {

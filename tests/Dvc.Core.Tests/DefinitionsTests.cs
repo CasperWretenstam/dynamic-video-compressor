@@ -1,6 +1,6 @@
-using Dvc.Api.Models.Definitions;
+using Dvc.Core.Definitions;
 
-namespace Dvc.Api.Tests;
+namespace Dvc.Core.Tests;
 
 public class QualityPreferenceDefinitionsTests
 {
