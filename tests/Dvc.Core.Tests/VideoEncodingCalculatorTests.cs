@@ -1,6 +1,6 @@
-using Dvc.Api.Services;
+using Dvc.Core.Compression;
 
-namespace Dvc.Api.Tests;
+namespace Dvc.Core.Tests;
 
 public class VideoEncodingCalculatorTests
 {

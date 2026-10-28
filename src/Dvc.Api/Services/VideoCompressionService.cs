@@ -1,7 +1,8 @@
 using System.Globalization;
-using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.Entities;
 using Dvc.Api.Models.Options;
+using Dvc.Core.Compression;
+using Dvc.Core.Definitions;
 using FFMpegCore;
 using FFMpegCore.Enums;
 using FFMpegCore.Exceptions;

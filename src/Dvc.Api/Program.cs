@@ -5,6 +5,7 @@ using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.Entities;
 using Dvc.Api.Models.Options;
 using Dvc.Api.Services;
+using Dvc.Core.Definitions;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;

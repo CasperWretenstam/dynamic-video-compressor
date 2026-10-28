@@ -20,4 +20,8 @@
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Dvc.Core\Dvc.Core.csproj" />
+  </ItemGroup>
+
 </Project>

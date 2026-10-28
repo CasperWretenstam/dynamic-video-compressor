@@ -3,9 +3,11 @@ WORKDIR /src
 
 COPY DynamicVideoCompressor.slnx Directory.Build.props Directory.Packages.props ./
 COPY src/Dvc.Api/Dvc.Api.csproj src/Dvc.Api/
+COPY src/Dvc.Core/Dvc.Core.csproj src/Dvc.Core/
 RUN dotnet restore src/Dvc.Api/Dvc.Api.csproj
 
 COPY src/Dvc.Api/ src/Dvc.Api/
+COPY src/Dvc.Core/ src/Dvc.Core/
 RUN dotnet publish src/Dvc.Api/Dvc.Api.csproj -c Release -o /app/publish --no-restore
 
 # Static, dependency-free ffmpeg/ffprobe with libx264 - Debian's own apt
