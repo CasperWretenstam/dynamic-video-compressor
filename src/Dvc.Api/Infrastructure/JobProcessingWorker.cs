@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Dvc.Api.Infrastructure.Data;
-using Dvc.Api.Services;
 using Dvc.Api.Models.Entities;
+using Dvc.Api.Models.Options;
+using Dvc.Core.Compression;
+using Dvc.Core.Definitions;
 
 namespace Dvc.Api.Infrastructure;
 
@@ -16,7 +19,7 @@ namespace Dvc.Api.Infrastructure;
 /// </remarks>
 public class JobProcessingWorker : BackgroundService
 {
-    // Replaces any failure that isn't a JobFailedException. Those mostly
+    // Replaces any failure that isn't a CompressionFailedException. Those mostly
     // carry ffmpeg's raw output, which is logged but not meant for callers.
     private const string GenericFailureMessage =
         "The video could not be encoded. The source file may be corrupt or use an unsupported codec.";
@@ -24,17 +27,20 @@ public class JobProcessingWorker : BackgroundService
     private readonly IJobQueue _jobQueue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
+    private readonly IOptions<EncodingOptions> _encodingOptions;
     private readonly ILogger<JobProcessingWorker> _logger;
 
     public JobProcessingWorker(
         IJobQueue jobQueue,
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
+        IOptions<EncodingOptions> encodingOptions,
         ILogger<JobProcessingWorker> logger)
     {
         _jobQueue = jobQueue;
         _scopeFactory = scopeFactory;
         _configuration = configuration;
+        _encodingOptions = encodingOptions;
         _logger = logger;
     }
 
@@ -45,6 +51,10 @@ public class JobProcessingWorker : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<DvcDbContext>();
             var videoCompressionService = scope.ServiceProvider.GetRequiredService<IVideoCompressionService>();
+
+            // Tags every line logged while processing, including the
+            // compression engine's, which doesn't know about jobs.
+            using var logScope = _logger.BeginScope("Job {JobId}", jobId);
 
             try
             {
@@ -95,14 +105,31 @@ public class JobProcessingWorker : BackgroundService
 
         try
         {
-            await videoCompressionService.CompressAsync(job, outputPath, cancellationToken);
+            var request = BuildCompressionRequest(job);
+            var source = await videoCompressionService.ProbeAsync(request.InputPath, cancellationToken);
+
+            // Saved before planning the encode, which can fail, so the caller
+            // still sees what was attempted.
+            var output = CompressionPlanner.PlanOutput(request, source);
+            job.OutputWidth = output.Width;
+            job.OutputHeight = output.Height;
+            job.OutputFps = output.Fps;
+
+            // Plan warnings are kept even if the encode then fails; the
+            // encode's own only exist on success.
+            var plan = CompressionPlanner.PlanEncode(request, source, output);
+            AppendWarnings(job, plan.Warnings);
+
+            var result = await videoCompressionService.EncodeAsync(plan, outputPath, cancellationToken);
+            AppendWarnings(job, result.Warnings);
+
             job.Status = JobStatus.Completed;
             _logger.LogInformation("Completed job {JobId}", jobId);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             job.Status = JobStatus.Failed;
-            job.ErrorMessage = ex is JobFailedException ? ex.Message : GenericFailureMessage;
+            job.ErrorMessage = ex is CompressionFailedException ? ex.Message : GenericFailureMessage;
             _logger.LogWarning(ex, "Job {JobId} failed during compression", jobId);
 
             // Whatever ffmpeg wrote before failing is partial or oversized.
@@ -118,6 +145,34 @@ public class JobProcessingWorker : BackgroundService
         // The input isn't needed again, whatever the outcome. Deleted after
         // the status is saved, so a cleanup failure can't block it.
         TryDeleteFile(job.InputPath, jobId);
+    }
+
+    // The job's settings with the configured defaults filled in. The
+    // resolution label becomes its short side in pixels.
+    private CompressionRequest BuildCompressionRequest(Job job)
+    {
+        var options = _encodingOptions.Value;
+        return new CompressionRequest
+        {
+            InputPath = job.InputPath,
+            TargetSizeBytes = job.TargetSizeBytes,
+            QualityPreference = job.QualityPreference,
+            ShortSide = job.Resolution is null ? null : ResolutionDefinitions.ShortSides[job.Resolution],
+            Fps = job.Fps,
+            EncoderPreset = job.EncoderPreset,
+            TwoPass = options.TwoPass,
+            DefaultMaxShortSide = options.DefaultMaxShortSide,
+            DefaultMaxFps = options.DefaultMaxFps,
+        };
+    }
+
+    // Appended rather than overwritten, so a warning from submission is kept.
+    private static void AppendWarnings(Job job, IEnumerable<string> warnings)
+    {
+        foreach (var warning in warnings)
+        {
+            job.Warning = job.Warning is null ? warning : $"{job.Warning} {warning}";
+        }
     }
 
     private string BuildOutputPath(Guid jobId)
