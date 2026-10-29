@@ -5,6 +5,7 @@ using Dvc.Api.Models.Definitions;
 using Dvc.Api.Models.Entities;
 using Dvc.Api.Models.Options;
 using Dvc.Api.Services;
+using Dvc.Core.Compression;
 using Dvc.Core.Definitions;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,9 @@ builder.Logging.AddSimpleConsole(options =>
     options.SingleLine = true;
     options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
     options.UseUtcTimestamp = true;
+    // Lets the worker tag every line logged while compressing with the job
+    // it belongs to, including those from the compression engine.
+    options.IncludeScopes = true;
 });
 
 var app = builder.Build();
