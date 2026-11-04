@@ -158,4 +158,4 @@ dotnet run --project src/Dvc.Api                  # serves http://localhost:5155
 dotnet test
 ```
 
-Run the database update once after cloning, and again whenever new migrations come in. A local run has the API reference turned on, at `http://localhost:5155/scalar`. [CLAUDE.md](CLAUDE.md) covers the architecture, design decisions and code conventions. Claude Code loads it automatically, and it's the place to read up before changing the code.
+Run the database update once after cloning, and again whenever new migrations come in. A local run has the API reference turned on, at `http://localhost:5155/scalar`. The `CLAUDE.md` files cover the architecture, design decisions and code conventions: [CLAUDE.md](CLAUDE.md) for the repo as a whole, [src/Dvc.Core/CLAUDE.md](src/Dvc.Core/CLAUDE.md) for the compression engine and [src/Dvc.Api/CLAUDE.md](src/Dvc.Api/CLAUDE.md) for the API. Claude Code loads them automatically, and they're the place to read up before changing the code.
