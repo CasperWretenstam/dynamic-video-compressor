@@ -2,9 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/Dvc.Api/Dvc.Api.csproj" />
     <Project Path="src/Dvc.Core/Dvc.Core.csproj" />
+    <Project Path="src/Dvc.Desktop/Dvc.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dvc.Api.Tests/Dvc.Api.Tests.csproj" />
     <Project Path="tests/Dvc.Core.Tests/Dvc.Core.Tests.csproj" />
+    <Project Path="tests/Dvc.Desktop.Tests/Dvc.Desktop.Tests.csproj" />
   </Folder>
 </Solution>
