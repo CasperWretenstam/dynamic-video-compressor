@@ -155,7 +155,8 @@ Working on the code without Docker needs the [.NET 10 SDK](https://dotnet.micros
 ```bash
 dotnet ef database update --project src/Dvc.Api   # create or update the local database
 dotnet run --project src/Dvc.Api                  # serves http://localhost:5155
+dotnet run --project src/Dvc.Desktop              # opens the desktop app
 dotnet test
 ```
 
-Run the database update once after cloning, and again whenever new migrations come in. A local run has the API reference turned on, at `http://localhost:5155/scalar`. The `CLAUDE.md` files cover the architecture, design decisions and code conventions: [CLAUDE.md](CLAUDE.md) for the repo as a whole, [src/Dvc.Core/CLAUDE.md](src/Dvc.Core/CLAUDE.md) for the compression engine and [src/Dvc.Api/CLAUDE.md](src/Dvc.Api/CLAUDE.md) for the API. Claude Code loads them automatically, and they're the place to read up before changing the code.
+Run the database update once after cloning, and again whenever new migrations come in. A local run has the API reference turned on, at `http://localhost:5155/scalar`. The `CLAUDE.md` files cover the architecture, design decisions and code conventions: [CLAUDE.md](CLAUDE.md) for the repo as a whole, [src/Dvc.Core/CLAUDE.md](src/Dvc.Core/CLAUDE.md) for the compression engine, [src/Dvc.Api/CLAUDE.md](src/Dvc.Api/CLAUDE.md) for the API and [src/Dvc.Desktop/CLAUDE.md](src/Dvc.Desktop/CLAUDE.md) for the desktop app. Claude Code loads them automatically, and they're the place to read up before changing the code.

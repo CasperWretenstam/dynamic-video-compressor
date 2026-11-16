@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Dvc.Desktop.ViewModels"
+        x:Class="Dvc.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Dynamic Video Compressor"
+        Width="640" Height="360"
+        WindowStartupLocation="CenterScreen">
+
+    <TextBlock Text="{Binding Status}"
+               TextWrapping="Wrap"
+               Margin="24"
+               VerticalAlignment="Center" />
+
+</Window>
