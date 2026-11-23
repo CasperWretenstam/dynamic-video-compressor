@@ -7,9 +7,11 @@
         Width="640" Height="360"
         WindowStartupLocation="CenterScreen">
 
-    <TextBlock Text="{Binding Status}"
-               TextWrapping="Wrap"
-               Margin="24"
-               VerticalAlignment="Center" />
+    <StackPanel Margin="24" Spacing="16" VerticalAlignment="Center">
+        <Button Content="Choose video"
+                Command="{Binding ChooseVideoCommand}" />
+        <TextBlock Text="{Binding Status}"
+                   TextWrapping="Wrap" />
+    </StackPanel>
 
 </Window>

@@ -14,7 +14,7 @@ Each app references `Dvc.Core`, never the other way round. Each project's own `C
 
 Requires the .NET 10 SDK, and real `ffmpeg`/`ffprobe` binaries on PATH (see "External dependency: FFmpeg" below) — neither is bundled or checked in. Alternatively, `docker compose up -d --build` runs the API in a container with both bundled — see the root `README.md` for that path.
 
-`README.md` is the documentation for people running or calling the service: setup, the API and its parameters, error format, configuration, limitations, plus a short developer quick start. The `CLAUDE.md` files are for working on the code: architecture, design decisions and conventions. When a change is visible to callers or operators (an endpoint, a parameter, an error, a config setting, the Docker setup), update the README in the same change.
+`README.md` is the documentation for people running or calling the service and for desktop app users: the service's setup, API and parameters, error format, configuration and limitations; the desktop app's prerequisites, output location and settings; plus a short developer quick start. The `CLAUDE.md` files are for working on the code: architecture, design decisions and conventions. When a change is visible to callers, operators or desktop users (an endpoint, a parameter, an error, a config setting, the Docker setup, where the desktop app saves files or which settings it uses), update the README in the same change.
 
 ## Layout
 
