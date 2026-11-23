@@ -8,7 +8,7 @@ A video compressor that encodes to a named quality tier (or, as an advanced opti
 
 - **`src/Dvc.Core`** — the compression engine: lookup tables (`Dvc.Core.Definitions`) and probing, planning and encoding (`Dvc.Core.Compression`). A plain class library with no knowledge of jobs, databases or config. See `src/Dvc.Core/CLAUDE.md`.
 - **`src/Dvc.Api`** — an ASP.NET Core Web API that runs the engine as a microservice downstream of an upload system: a caller (e.g. a website's backend) posts a video and polls for the compressed result. See `src/Dvc.Api/CLAUDE.md`.
-- **`Dvc.Desktop`** (planned) — a desktop app calling the engine in-process.
+- **`src/Dvc.Desktop`** — an Avalonia desktop app that calls the engine in-process, on the user's own machine. See `src/Dvc.Desktop/CLAUDE.md`.
 
 Each app references `Dvc.Core`, never the other way round. Each project's own `CLAUDE.md` covers its architecture and design decisions, with paths relative to that project's folder; this file covers the repo as a whole.
 
@@ -18,8 +18,8 @@ Requires the .NET 10 SDK, and real `ffmpeg`/`ffprobe` binaries on PATH (see "Ext
 
 ## Layout
 
-- `src/Dvc.Core`, `src/Dvc.Api` — the projects above.
-- `tests/Dvc.Core.Tests`, `tests/Dvc.Api.Tests` — one xUnit test project per project; each project's `CLAUDE.md` says what its tests cover.
+- `src/Dvc.Core`, `src/Dvc.Api`, `src/Dvc.Desktop` — the projects above.
+- `tests/Dvc.Core.Tests`, `tests/Dvc.Api.Tests`, `tests/Dvc.Desktop.Tests` — one xUnit test project per project; each project's `CLAUDE.md` says what its tests cover.
 - `scripts/` — PowerShell tooling for checking and poking at a running API instance (see `src/Dvc.Api/CLAUDE.md`).
 - `Directory.Build.props`, `Directory.Packages.props` — build settings and package versions shared by every project (see "Conventions").
 - `Dockerfile`, `docker-compose.yml` — the API's container image (see `src/Dvc.Api/CLAUDE.md`).
@@ -35,7 +35,7 @@ Run all tests: `dotnet test`
 
 Run a single test: `dotnet test --filter "FullyQualifiedName~VideoEncodingCalculatorTests.CalculateOutputDimensions_PreservesAspectRatioAndOrientation"` (substitute the class/method name; `--filter "MethodName"` also works for a unique method name)
 
-Running the API and managing its database migrations: see "Commands" in `src/Dvc.Api/CLAUDE.md`.
+Running the API and managing its database migrations: see "Commands" in `src/Dvc.Api/CLAUDE.md`. Running the desktop app: `dotnet run --project src/Dvc.Desktop`.
 
 ## Git workflow
 
@@ -58,10 +58,10 @@ Running the API and managing its database migrations: see "Commands" in `src/Dvc
   - **Write for a reader opening the file cold**, not someone who already knows the project. Avoid project shorthand ("a TargetSizeBytes job", "startup recovery") and say what it means instead ("a job aiming for a file size", "the next startup re-runs jobs it finds still processing").
   - **Don't name a member bare.** `TargetSizeBytes` exists on `SubmitJobRequest`, `Job`, `JobSettings` and `CompressionRequest`, so the bare name doesn't say which one is meant or what it is. In a `///` comment, write it in `<c>` next to a plain description that carries the sentence on its own: "aims for a file size (`<c>SubmitJobRequest.TargetSizeBytes</c>`)", not "one of `<c>QualityPreferenceDefinitions.Tiers</c>`". Use the name the comment's reader knows it by: in docs written for API callers, the JSON or form field name (`<c>targetSizeBytes</c>` for a response field, `<c>TargetSizeBytes</c>` for the submitted one); elsewhere `Type.Member`, leaving out the type for a member of the same type, and the bare name for a parameter. No `<see cref>` or `<paramref>`: the OpenAPI generator renders a cref as the member's type and qualified name (e.g. `JobSettings JobStatusResponse.Settings`), ignoring any link text, and one form everywhere keeps the docs consistent. In a `//` comment, describe it in words. A type name (`JobProcessingWorker`) is fine in a `//` comment, since it's unique and searchable. API-facing strings (error messages, `GET /v1/options` descriptions) keep the field names, since those are the names callers send.
   - **Each doc comment stands on its own.** A hover shows one member's doc in isolation, and Scalar shows each field's description on its own, so don't refer back to a sibling's ("what those settings resolved to", "what that came to"). Name the thing.
-  - **Where `///` goes:** the API's endpoint handlers and models (`Models/Entities`, `Models/DTOs`, `Models/Definitions`, `Models/Options`), everything public in `Dvc.Core`, and any type or member a doc comment refers to by name. Code inside the endpoints, the worker and the services explains itself with ordinary `//` comments.
+  - **Where `///` goes:** the API's endpoint handlers and models (`Models/Entities`, `Models/DTOs`, `Models/Definitions`, `Models/Options`), everything public in `Dvc.Core`, the public members of the desktop app's `Services/` and `ViewModels/`, and any type or member a doc comment refers to by name. Code inside the endpoints, the worker and the services explains itself with ordinary `//` comments.
   - **Tag usage:** a `<summary>` is phrased as what the member returns ("The AAC bitrate (bps) to encode audio at…"), so `<returns>` is left out unless the return value carries something the summary doesn't, e.g. a sentinel value or the meaning of a tuple field (`CapAtSourceBitrate`). `<param>` is added only where the name alone isn't enough: units, or what `null` means. The API's handlers and the models reaching its OpenAPI document have rules of their own (see `src/Dvc.Api/CLAUDE.md`).
-  - **Enforcement:** `GenerateDocumentationFile` is on in every project, so every build checks the doc comments' XML: malformed XML (CS1570), a `<param>` for a parameter that doesn't exist (CS1572), and a `///` comment attached to nothing (CS1587). `Dvc.Api.csproj` and `Dvc.Core.csproj` suppress CS1591 (undocumented public member) and CS1573 (only some parameters documented), both deliberate here. Names written in `<c>` aren't checked, so search the comments for a member's old name when renaming it.
+  - **Enforcement:** `GenerateDocumentationFile` is on in every project, so every build checks the doc comments' XML: malformed XML (CS1570), a `<param>` for a parameter that doesn't exist (CS1572), and a `///` comment attached to nothing (CS1587). `Dvc.Api.csproj`, `Dvc.Core.csproj` and `Dvc.Desktop.csproj` suppress CS1591 (undocumented public member) and CS1573 (only some parameters documented), both deliberate here. Names written in `<c>` aren't checked, so search the comments for a member's old name when renaming it.
 
 ## External dependency: FFmpeg
 
-FFMpegCore (the NuGet package, referenced by `Dvc.Core`) is a thin C# wrapper around the ffmpeg/ffprobe CLI — it contains no codec logic itself and does no encoding in-process. The real binaries must be installed separately and discoverable on PATH; they're intentionally never committed (large, platform-specific, frequently updated). They also need to be a build compiled with libx264 support (e.g. gyan.dev's "essentials"/"full" builds), since `Dvc.Core`'s `VideoCompressionService` hardcodes `VideoCodec.LibX264` — a minimal/LGPL-only ffmpeg build will fail at encode time. The API's Docker image bundles a suitable build (see `src/Dvc.Api/CLAUDE.md`).
+FFMpegCore (the NuGet package, referenced by `Dvc.Core`) is a thin C# wrapper around the ffmpeg/ffprobe CLI — it contains no codec logic itself and does no encoding in-process. The real binaries must be installed separately and discoverable on PATH; they're intentionally never committed (large, platform-specific, frequently updated). They also need to be a build compiled with libx264 support (e.g. gyan.dev's "essentials"/"full" builds), since `Dvc.Core`'s `VideoCompressionService` hardcodes `VideoCodec.LibX264` — a minimal/LGPL-only ffmpeg build will fail at encode time. The API's Docker image bundles a suitable build (see `src/Dvc.Api/CLAUDE.md`); the desktop app checks for one at startup (see `src/Dvc.Desktop/CLAUDE.md`).

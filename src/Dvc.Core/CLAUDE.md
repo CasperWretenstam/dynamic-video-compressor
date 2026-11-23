@@ -1,6 +1,6 @@
 # Dvc.Core
 
-The compression engine shared by the apps (`Dvc.Api`, and the planned desktop app). See the root `CLAUDE.md` for the repo as a whole: commands, git workflow and shared conventions. Paths below are relative to `src/Dvc.Core/`.
+The compression engine shared by the apps (`Dvc.Api` and `Dvc.Desktop`). See the root `CLAUDE.md` for the repo as a whole: commands, git workflow and shared conventions. Paths below are relative to `src/Dvc.Core/`.
 
 ## What this is
 
@@ -67,7 +67,7 @@ A `CompressionRequest` sets exactly one of these (`PlanEncode` throws `ArgumentE
 
 ## Planned features
 
-- **Custom output resolution.** An explicit width × height (e.g. `900x400`) alongside the resolution labels, mainly for the planned desktop app, where the user can see the source's shape. It's an additional path, not a replacement: the short side still backs the labels and the default short-side cap, which callers that don't know the source's shape depend on.
+- **Custom output resolution.** An explicit width × height (e.g. `900x400`) alongside the resolution labels, mainly for the desktop app, where the user can see the source's shape. It's an additional path, not a replacement: the short side still backs the labels and the default short-side cap, which callers that don't know the source's shape depend on.
   - What changes: a shared parser in `Definitions`, so the apps' validation and the engine agree; `CompressionRequest`, which only carries a short side; and in the API, `JobUploadReader` validation, the `ResolutionDefinitions.ShortSides[job.Resolution]` lookup in `JobProcessingWorker.BuildCompressionRequest` (which would throw on anything but a label), and `GET /v1/options`, which advertises `Resolution` as a closed list.
   - What doesn't: the bitrate and CRF math works from pixel count, and the target-size path needs no dimensions. Only `CalculateOutputDimensions` is short-side based, and an explicit size bypasses it. Its round-to-even step is still needed, since libx264 rejects odd dimensions. Reusing the API's `Resolution` string field needs no migration.
   - Decisions to make first:
