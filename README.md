@@ -1,6 +1,11 @@
 # Dynamic Video Compressor
 
-An HTTP microservice that compresses video files to a named quality tier (or, for advanced use, a target file size) using FFmpeg. Post a video, poll for status, download the compressed result — designed to sit downstream of another backend (e.g. an upload service), not to be called directly by end users.
+Compresses video files to a named quality tier (or, for advanced use, a target file size) using FFmpeg. It comes in two forms:
+
+- **An HTTP microservice.** Post a video, poll for status, download the compressed result — designed to sit downstream of another backend (e.g. an upload service), not to be called directly by end users.
+- **A desktop app** for Windows that compresses a video you pick. See [Desktop app](#desktop-app).
+
+The sections up to the desktop app cover the service.
 
 ## Prerequisites
 
@@ -147,6 +152,41 @@ The container runs as a non-root user (UID 1654), and `/data` is the only place 
 - **No authentication.** This service is designed to run on a trusted internal network, called only by another backend — not to be exposed directly to the internet.
 - **No automatic cleanup.** A job and its compressed file stay until the caller deletes them with `DELETE /v1/jobs/{id}`; there's no expiry. A caller that never deletes its jobs will slowly fill `Storage__OutputDirectory`.
 - **Single sequential worker.** Jobs are processed one at a time, in submission order. That's by design: a single ffmpeg encode already uses all available CPU cores, so running several at once wouldn't finish them sooner.
+
+## Desktop app
+
+An early version: it compresses one video at a time, with fixed settings.
+
+### Prerequisites
+
+- Windows. The app is built on a cross-platform UI framework, but it hasn't been tried on macOS or Linux yet.
+- The [.NET 10 SDK](https://dotnet.microsoft.com/download), since there's no packaged build yet.
+- `ffmpeg` and `ffprobe` on PATH, built with libx264. gyan.dev's essentials build has both: `winget install Gyan.FFmpeg.Essentials`. The app checks for them at startup and says what's missing.
+
+### Running it
+
+```bash
+dotnet run --project src/Dvc.Desktop
+```
+
+Click **Choose video** and pick a video (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`, `.flv`, `.wmv` or `.m4v`). Compression starts straight away, and the status line under the button says when it's done and where the file went, or why it failed. There's no progress bar yet, and a long video can take a while at the `slow` preset. The button is disabled until the current video is done. Closing the window cancels a compression in progress.
+
+### Where output goes
+
+Compressed videos go to the `Dynamic Video Compressor` folder in your Videos folder (`Videos\Dynamic Video Compressor`), which is created when first needed. Each is an `.mp4` named after its source: `clip.mov` becomes `clip.mp4`, then `clip (1).mp4`, `clip (2).mp4` and so on if that name is taken. Nothing is ever overwritten, and the original video is never changed.
+
+While a video is being compressed, the unfinished output is a `clip.<random letters>.partial.mp4` file in the same folder. It gets its final name once the compression finishes, and is deleted if it fails or is cancelled. If the app itself is killed mid-compression (e.g. from Task Manager), ffmpeg may finish on its own and leave the `.partial.mp4` file behind; it's safe to delete.
+
+### Settings
+
+The settings are fixed for now, matching the service's defaults:
+
+| Setting | Value |
+|---|---|
+| Quality | `Balanced` |
+| Resolution | The source's, with the short side capped at 1080 pixels. Never upscaled |
+| Framerate | The source's, capped at 30fps. Never raised |
+| Encoder preset | `slow` |
 
 ## Development
 

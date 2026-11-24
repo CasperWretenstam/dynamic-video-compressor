@@ -27,8 +27,10 @@ public partial class App : Application
             var host = BuildHost();
             desktop.Exit += (_, _) => host.Dispose();
 
+            var window = host.Services.GetRequiredService<MainWindow>();
             var viewModel = host.Services.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow { DataContext = viewModel };
+            window.DataContext = viewModel;
+            desktop.MainWindow = window;
 
             // The check reports every failure as a status message rather than
             // throwing, so nothing is lost by not awaiting it.
@@ -49,6 +51,11 @@ public partial class App : Application
 
         builder.Services.AddSingleton<IVideoCompressionService, VideoCompressionService>();
         builder.Services.AddSingleton<FfmpegCheck>();
+        builder.Services.AddSingleton<CompressionRunner>();
+        builder.Services.AddSingleton<MainWindow>();
+        // The file picker opens over the main window.
+        builder.Services.AddSingleton<IVideoFilePicker>(services =>
+            new VideoFilePicker(services.GetRequiredService<MainWindow>()));
         builder.Services.AddSingleton<MainWindowViewModel>();
 
         return builder.Build();
