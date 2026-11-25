@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Dvc.Desktop.ViewModels"
+             x:Class="Dvc.Desktop.Views.QueueView"
+             x:DataType="vm:QueueViewModel">
+
+    <Grid>
+        <!-- Shown instead of the list while the queue is empty. -->
+        <Border Classes="dropZone"
+                IsVisible="{Binding IsEmpty}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Classes="title" HorizontalAlignment="Center" Text="Drop videos here" />
+                <TextBlock Classes="secondary" HorizontalAlignment="Center" Text="or click Add videos" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer IsVisible="{Binding !IsEmpty}">
+            <ItemsControl x:Name="QueueList" ItemsSource="{Binding Items}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="{StaticResource ControlSpacing}" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:QueueItemViewModel">
+                        <Border Classes="card">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Classes="title"
+                                               Text="{Binding FileName}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding InputPath}" />
+                                    <TextBlock Classes="secondary"
+                                               Classes.danger="{Binding IsFailed}"
+                                               Text="{Binding Details}"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding Details, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1"
+                                           VerticalAlignment="Center"
+                                           Classes.success="{Binding IsDone}"
+                                           Classes.danger="{Binding IsFailed}"
+                                           Text="{Binding StatusText}" />
+
+                                <StackPanel Grid.Column="2"
+                                            Orientation="Horizontal"
+                                            Spacing="{StaticResource ControlSpacing}"
+                                            VerticalAlignment="Center">
+                                    <Button Content="Retry"
+                                            IsVisible="{Binding IsFailed}"
+                                            Command="{Binding #QueueList.((vm:QueueViewModel)DataContext).RetryCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="Remove"
+                                            Command="{Binding #QueueList.((vm:QueueViewModel)DataContext).RemoveCommand}"
+                                            CommandParameter="{Binding}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+
+</UserControl>

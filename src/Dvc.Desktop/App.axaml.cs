@@ -56,6 +56,7 @@ public partial class App : Application
         // The file picker opens over the main window.
         builder.Services.AddSingleton<IVideoFilePicker>(services =>
             new VideoFilePicker(services.GetRequiredService<MainWindow>()));
+        builder.Services.AddSingleton<QueueViewModel>();
         builder.Services.AddSingleton<MainWindowViewModel>();
 
         return builder.Build();
