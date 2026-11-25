@@ -120,7 +120,7 @@ public class JobProcessingWorker : BackgroundService
             var plan = CompressionPlanner.PlanEncode(request, source, output);
             AppendWarnings(job, plan.Warnings);
 
-            var result = await videoCompressionService.EncodeAsync(plan, outputPath, cancellationToken);
+            var result = await videoCompressionService.EncodeAsync(plan, outputPath, progress: null, cancellationToken);
             AppendWarnings(job, result.Warnings);
 
             job.Status = JobStatus.Completed;

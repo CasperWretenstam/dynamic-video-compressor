@@ -54,7 +54,8 @@ internal sealed class FakeCompressionService : IVideoCompressionService
         return Task.FromResult(Source);
     }
 
-    public async Task<CompressionResult> EncodeAsync(CompressionPlan plan, string outputPath, CancellationToken cancellationToken)
+    public async Task<CompressionResult> EncodeAsync(
+        CompressionPlan plan, string outputPath, IProgress<EncodeProgress>? progress, CancellationToken cancellationToken)
     {
         await File.WriteAllTextAsync(outputPath, EncodedContent, CancellationToken.None);
 

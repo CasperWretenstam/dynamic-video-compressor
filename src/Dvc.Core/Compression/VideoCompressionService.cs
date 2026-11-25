@@ -82,7 +82,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
     }
 
     public async Task<CompressionResult> EncodeAsync(
-        CompressionPlan plan, string outputPath, CancellationToken cancellationToken)
+        CompressionPlan plan, string outputPath, IProgress<EncodeProgress>? progress, CancellationToken cancellationToken)
     {
         foreach (var warning in plan.Warnings)
         {
@@ -92,11 +92,11 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
         switch (plan.Mode)
         {
             case ConstantQualityEncode mode:
-                await EncodeConstantQualityAsync(plan, mode, outputPath, cancellationToken);
+                await EncodeConstantQualityAsync(plan, mode, outputPath, progress, cancellationToken);
                 return new CompressionResult([], new FileInfo(outputPath).Length);
 
             case TargetSizeEncode mode:
-                return await EncodeToTargetSizeAsync(plan, mode, outputPath, cancellationToken);
+                return await EncodeToTargetSizeAsync(plan, mode, outputPath, progress, cancellationToken);
 
             default:
                 throw new ArgumentException($"Unknown encode mode {plan.Mode.GetType().Name}.", nameof(plan));
@@ -104,7 +104,8 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
     }
 
     private async Task EncodeConstantQualityAsync(
-        CompressionPlan plan, ConstantQualityEncode mode, string outputPath, CancellationToken cancellationToken)
+        CompressionPlan plan, ConstantQualityEncode mode, string outputPath, IProgress<EncodeProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var source = plan.Source;
         var output = plan.Output;
@@ -117,11 +118,13 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
             output.ForceFps ? $"{output.Fps!.Value.ToString(CultureInfo.InvariantCulture)}fps" : "source fps",
             output.EncoderPreset, mode.MaxRateBps, bufSizeBps);
 
-        await EncodeCrfAsync(plan.InputPath, outputPath, output, mode.Crf, mode.MaxRateBps, bufSizeBps, cancellationToken);
+        var reporter = new ProgressReporter(progress, source.DurationSeconds, Attempt: 1);
+        await EncodeCrfAsync(plan.InputPath, outputPath, output, mode.Crf, mode.MaxRateBps, bufSizeBps, reporter, cancellationToken);
     }
 
     private async Task<CompressionResult> EncodeToTargetSizeAsync(
-        CompressionPlan plan, TargetSizeEncode mode, string outputPath, CancellationToken cancellationToken)
+        CompressionPlan plan, TargetSizeEncode mode, string outputPath, IProgress<EncodeProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var output = plan.Output;
         var durationSeconds = plan.Source.DurationSeconds;
@@ -146,13 +149,14 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
                 attempt, durationSeconds, targetBitrateBps, outputDescription, mode.TwoPass ? "two-pass" : "one-pass",
                 output.EncoderPreset, maxRateBps, bufSizeBps);
 
+            var reporter = new ProgressReporter(progress, durationSeconds, attempt);
             if (mode.TwoPass)
             {
-                await EncodeTwoPassAsync(plan.InputPath, outputPath, output, targetBitrateBps, maxRateBps, bufSizeBps, cancellationToken);
+                await EncodeTwoPassAsync(plan.InputPath, outputPath, output, targetBitrateBps, maxRateBps, bufSizeBps, reporter, cancellationToken);
             }
             else
             {
-                await EncodeOnePassAsync(plan.InputPath, outputPath, output, targetBitrateBps, maxRateBps, bufSizeBps, cancellationToken);
+                await EncodeOnePassAsync(plan.InputPath, outputPath, output, targetBitrateBps, maxRateBps, bufSizeBps, reporter, cancellationToken);
             }
 
             actualSizeBytes = new FileInfo(outputPath).Length;
@@ -210,7 +214,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
     // maxrate/bufsize only cap the worst case on unusually complex content.
     private static async Task EncodeCrfAsync(
         string inputPath, string outputPath, OutputSettings settings, int crf, long maxRateBps, long bufSizeBps,
-        CancellationToken cancellationToken)
+        ProgressReporter reporter, CancellationToken cancellationToken)
     {
         await FFMpegArguments
             .FromFileInput(inputPath)
@@ -220,6 +224,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
                 .WithCustomArgument($"-bufsize {bufSizeBps}")
                 .WithFastStart())
             .CancellableThrough(cancellationToken)
+            .WithProgress(reporter, EncodePass.Single)
             .ProcessAsynchronously();
     }
 
@@ -228,7 +233,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
     // averaging to the target bitrate.
     private static async Task EncodeTwoPassAsync(
         string inputPath, string outputPath, OutputSettings settings, long targetBitrateBps, long maxRateBps, long bufSizeBps,
-        CancellationToken cancellationToken)
+        ProgressReporter reporter, CancellationToken cancellationToken)
     {
         // Unique per encode, so concurrent encodes never share a passlog.
         var passLogPrefix = Path.Combine(Path.GetTempPath(), $"dvc-2pass-{Guid.NewGuid()}");
@@ -246,6 +251,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
                     .WithCustomArgument($"-bufsize {bufSizeBps}")
                     .ForceFormat("null"))
                 .CancellableThrough(cancellationToken)
+                .WithProgress(reporter, EncodePass.First)
                 .ProcessAsynchronously();
 
             await FFMpegArguments
@@ -258,6 +264,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
                     .WithCustomArgument($"-bufsize {bufSizeBps}")
                     .WithFastStart())
                 .CancellableThrough(cancellationToken)
+                .WithProgress(reporter, EncodePass.Second)
                 .ProcessAsynchronously();
         }
         finally
@@ -272,7 +279,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
     // prone to misallocating bits between simple and complex scenes.
     private static async Task EncodeOnePassAsync(
         string inputPath, string outputPath, OutputSettings settings, long targetBitrateBps, long maxRateBps, long bufSizeBps,
-        CancellationToken cancellationToken)
+        ProgressReporter reporter, CancellationToken cancellationToken)
     {
         await FFMpegArguments
             .FromFileInput(inputPath)
@@ -282,6 +289,7 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
                 .WithCustomArgument($"-bufsize {bufSizeBps}")
                 .WithFastStart())
             .CancellableThrough(cancellationToken)
+            .WithProgress(reporter, EncodePass.Single)
             .ProcessAsynchronously();
     }
 
@@ -308,4 +316,29 @@ public class VideoCompressionService(ILogger<VideoCompressionService> logger) : 
         settings.AudioBitrateBps > 0
             ? options.WithAudioCodec(AudioCodec.Aac).WithAudioBitrate((int)(settings.AudioBitrateBps / 1000))
             : options.WithCustomArgument("-an");
+}
+
+// One attempt's progress target: where reports go, if anywhere, and what
+// they're measured against.
+internal sealed record ProgressReporter(IProgress<EncodeProgress>? Progress, double DurationSeconds, int Attempt);
+
+internal static class ProgressReporterExtensions
+{
+    // Turns ffmpeg's position updates during one run into progress reports,
+    // if the caller asked for them. The run's starting point is reported
+    // straight away, so a change of run shows without waiting for ffmpeg's
+    // first update.
+    public static FFMpegArgumentProcessor WithProgress(
+        this FFMpegArgumentProcessor processor, ProgressReporter reporter, EncodePass pass)
+    {
+        if (reporter.Progress is not { } progress)
+        {
+            return processor;
+        }
+
+        var (duration, attempt) = (reporter.DurationSeconds, reporter.Attempt);
+        progress.Report(EncodeProgress.At(TimeSpan.Zero, duration, pass, attempt));
+        return processor.NotifyOnProgress(position =>
+            progress.Report(EncodeProgress.At(position, duration, pass, attempt)));
+    }
 }

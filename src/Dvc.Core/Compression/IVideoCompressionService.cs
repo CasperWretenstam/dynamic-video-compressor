@@ -22,5 +22,10 @@ public interface IVideoCompressionService
     /// <c>outputPath</c>. On failure the file may be missing, partial or
     /// oversized; the caller cleans it up.
     /// </summary>
-    Task<CompressionResult> EncodeAsync(CompressionPlan plan, string outputPath, CancellationToken cancellationToken);
+    /// <param name="progress">
+    /// Receives how far along the encode is, several times a second, on a
+    /// background thread. Null for no reports.
+    /// </param>
+    Task<CompressionResult> EncodeAsync(
+        CompressionPlan plan, string outputPath, IProgress<EncodeProgress>? progress, CancellationToken cancellationToken);
 }

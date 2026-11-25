@@ -59,7 +59,7 @@ public sealed class CompressionRunner(
 
         try
         {
-            var result = await compressionService.EncodeAsync(plan, temporaryPath, cancellationToken);
+            var result = await compressionService.EncodeAsync(plan, temporaryPath, progress: null, cancellationToken);
             var outputPath = OutputNaming.MoveToFreeName(temporaryPath, OutputFolder, inputPath);
 
             logger.LogInformation("Compressed {InputPath} to {OutputPath}", inputPath, outputPath);
