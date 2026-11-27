@@ -3,7 +3,7 @@
 Compresses video files to a named quality tier (or, for advanced use, a target file size) using FFmpeg. It comes in two forms:
 
 - **An HTTP microservice.** Post a video, poll for status, download the compressed result — designed to sit downstream of another backend (e.g. an upload service), not to be called directly by end users.
-- **A desktop app** for Windows that compresses a video you pick. See [Desktop app](#desktop-app).
+- **A desktop app** for Windows that compresses the videos you pick. See [Desktop app](#desktop-app).
 
 The sections up to the desktop app cover the service.
 
@@ -155,7 +155,7 @@ The container runs as a non-root user (UID 1654), and `/data` is the only place 
 
 ## Desktop app
 
-An early version: it compresses a queue of videos one at a time, with fixed settings.
+An early version: it compresses a queue of videos one at a time, with settings you choose.
 
 ### Prerequisites
 
@@ -189,14 +189,19 @@ While a video is being compressed, the unfinished output is a `clip.<random lett
 
 ### Settings
 
-The settings are fixed for now, matching the service's defaults:
+The settings panel on the right (**Settings** in the toolbar shows or hides it) sets how every video is compressed. A change applies to each video that hasn't started compressing yet, including ones already waiting; the video being compressed keeps the settings it started with.
 
-| Setting | Value |
-|---|---|
-| Quality | `Balanced` |
-| Resolution | The source's, with the short side capped at 1080 pixels. Never upscaled |
-| Framerate | The source's, capped at 30fps. Never raised |
-| Encoder preset | `slow` |
+| Setting | Choices | Default |
+|---|---|---|
+| Quality | Smaller size, Balanced or Higher quality, each described in the panel. Ignored while aiming for a file size | Balanced |
+| Resolution | Original, or up to 4K, 1440p, 1080p, 720p, 480p or 360p (the short side, so portrait videos work the same way) | Up to 1080p |
+| Framerate | Original, or up to 60, 30 or 24fps | Up to 30fps |
+| Encoder preset (under **Advanced**) | libx264's presets, from `ultrafast` to `placebo`, each described in the panel. Slower presets give smaller files at the same quality | `slow` |
+| Aim for a file size (under **Advanced**) | Off, or a size in MB to land just under, encoded in two passes | Off (25 MB when turned on) |
+
+Resolution and framerate are limits, never targets: a video already smaller or slower keeps its own, so nothing is upscaled or given extra frames. **Original** keeps the source's however large. A file size too small for a video's length makes that video fail with a message saying so. Sizes are in MB of 1024 × 1024 bytes, as Windows Explorer shows them.
+
+**Reset to defaults** restores the table's defaults. The settings are saved as you change them, to `%AppData%\Dynamic Video Compressor\settings.json`, and are kept between runs. If that file is deleted or can't be read, the app starts from the defaults; a single setting that's no longer valid falls back to its default and the rest are kept.
 
 ## Development
 

@@ -23,26 +23,29 @@ The template's reflection-based `ViewLocator` was left out (`-rvl`). `App` creat
 - `Program.cs`: the Avalonia entry point. `BuildAvaloniaApp` stays public, static and free of side effects, because IDE XAML previewers call it.
 - `App.axaml.cs`: builds the host in `OnFrameworkInitializationCompleted`, creates `MainWindow` with `MainWindowViewModel` from the container, and disposes the host when the app exits. A XAML previewer runs this without a desktop lifetime, so the host and window are only created under `IClassicDesktopStyleApplicationLifetime`.
 - `Services/FfmpegCheck.cs`: the startup check (see below).
-- `Services/FixedCompressionSettings.cs`: the settings every compression uses, in one place (see "The queue").
+- `Services/CompressionSettings.cs`: the user's settings as a record, with their defaults, the choices on offer, and the `CompressionRequest` they build (see "Settings").
+- `Services/SettingsStore.cs`: the settings in effect, loaded from and saved to the settings file (see "Settings").
 - `Services/CompressionRunner.cs`: probes a video (`ProbeAsync`, giving a `SourceVideo`), then compresses it (`CompressAsync`): plan, encode to a temporary file, move it to its final name.
 - `Services/OutputNaming.cs`: output and temporary file names, and the never-overwrite move.
 - `Services/VideoFilePicker.cs`: `IVideoFilePicker` and its Avalonia implementation, the system's multi-file picker. The view model only sees the interface, so tests swap in a fake.
-- `ViewModels/MainWindowViewModel.cs`: the main window's state: whether ffmpeg is ready, the message shown until it is, and the queue (`Queue`). It passes ffmpeg's readiness on to the queue.
+- `ViewModels/MainWindowViewModel.cs`: the main window's state: whether ffmpeg is ready, the message shown until it is, the queue (`Queue`), the settings panel (`Settings`) and whether it's open. It passes ffmpeg's readiness on to the queue.
+- `ViewModels/SettingsViewModel.cs`: the settings panel's choices (`SettingOption<T>` lists), the ones picked, saving on change, and Reset to defaults.
 - `ViewModels/QueueViewModel.cs`: the compression queue and its commands (see "The queue").
 - `ViewModels/QueueItemViewModel.cs`: one video in the queue: its path, `QueueItemStatus`, probed details, progress and the outcome text.
 - `ViewModels/DisplayText.cs`: sizes, durations, size changes and time remaining written out for the user.
 - `Views/MainWindow.axaml`: the window: the toolbar, the ffmpeg and skipped-files messages, the queue and the status bar. Its code-behind handles dropped files and asks before closing with work left (see "Closing with work left").
 - `Views/QueueView.axaml`: the queue list, or the drop area while it's empty. Its data context is the `QueueViewModel`.
+- `Views/SettingsView.axaml`: the settings panel. Its data context is the `SettingsViewModel`.
 - `Views/ConfirmDialog.axaml`: a small modal yes/no window, since Avalonia's MIT packages have no message box.
 - `Styles/Resources.axaml` and `Styles/AppStyles.axaml`: see "Layout and styles".
 
-Registered services: `IVideoCompressionService` → `VideoCompressionService` (from Core), `FfmpegCheck`, `CompressionRunner`, `MainWindow`, `IVideoFilePicker` → `VideoFilePicker` (opening over `MainWindow`), `QueueViewModel` and `MainWindowViewModel`, all singletons since there's one window. `MainWindow` is in the container only so the picker can get it; `App` sets its `DataContext`.
+Registered services: `IVideoCompressionService` → `VideoCompressionService` (from Core), `FfmpegCheck`, `CompressionRunner`, `SettingsStore`, `MainWindow`, `IVideoFilePicker` → `VideoFilePicker` (opening over `MainWindow`), `QueueViewModel`, `SettingsViewModel` and `MainWindowViewModel`, all singletons since there's one window. `MainWindow` is in the container only so the picker can get it; `App` sets its `DataContext`.
 
 ## Layout and styles
 
-One window: a toolbar along the top, the queue filling the middle, and a status bar along the bottom (`QueueViewModel.Summary`). A settings panel will sit to the right of the queue. Each region gets its own view and view model as it grows, so it can be moved without rewriting its logic; the toolbar is still part of `MainWindow.axaml`, bound to the queue's commands.
+One window: a toolbar along the top, the queue filling the middle, the settings panel (`SettingsView`, 300 wide) to its right, and a status bar along the bottom (`QueueViewModel.Summary`). The **Settings** toggle at the toolbar's right end shows or hides the panel (`MainWindowViewModel.IsSettingsOpen`, open at start and not remembered). Each region gets its own view and view model as it grows, so it can be moved without rewriting its logic; the toolbar is still part of `MainWindow.axaml`, bound to the queue's commands.
 
-Views don't set colours, spacing or fonts themselves. They name what an element is with a style class (`Border.bar`, `Border.card`, `Border.warning`, `Border.dropZone`, `TextBlock.title`/`secondary`/`success`/`danger`), and `Styles/AppStyles.axaml` decides how that looks. The values those styles use live in `Styles/Resources.axaml`: the app's colours, in a light and a dark version (`ThemeDictionaries`, picked to match the system theme, since `App.axaml` requests the `Default` variant), and spacing (`PagePadding`, `ControlSpacing` and so on). Restyling the app means changing those two files.
+Views don't set colours, spacing or fonts themselves. They name what an element is with a style class (`Border.bar`, `Border.panel`, `Border.card`, `Border.warning`, `Border.dropZone`, `TextBlock.title`/`secondary`/`success`/`danger`), and `Styles/AppStyles.axaml` decides how that looks. The values those styles use live in `Styles/Resources.axaml`: the app's colours, in a light and a dark version (`ThemeDictionaries`, picked to match the system theme, since `App.axaml` requests the `Default` variant), and spacing (`PagePadding`, `ControlSpacing` and so on). Restyling the app means changing those two files.
 
 Text is English only and written directly in the views and view models; there are no resource strings.
 
@@ -75,16 +78,35 @@ A video is `Waiting`, `Compressing`, `Done` or `Failed`. There's no cancelled st
 
 Each video goes through `CompressionRunner` in two steps. `ProbeAsync` re-checks the extension, since a name can be typed into the picker, failing with a `CompressionFailedException`; then probes the source and reads its size. `CompressAsync` then takes that `SourceVideo`:
 
-1. Builds the request from `FixedCompressionSettings` and plans the encode with Core's `CompressionPlanner`, just like the API's worker.
+1. Builds the request from the `CompressionSettings` it's given (the queue passes `SettingsStore.Current` as each video starts) and plans the encode with Core's `CompressionPlanner`, just like the API's worker. A file size the planner can't encode (too small for the video's length) fails the video with the planner's message.
 2. Creates the output folder if needed and encodes to a temporary file there, `<name>.<guid>.partial.mp4`, passing progress reports through. It keeps `.mp4` because ffmpeg picks the container from the extension.
 3. On success, `OutputNaming.MoveToFreeName` moves it to `<name>.mp4`, or the first free `<name> (n).mp4`. It skips any existing file or folder, and moves with `overwrite: false`, so a file created between the check and the move is skipped too rather than replaced. That also covers a source that sits in the output folder already. The final name is chosen after the encode, not before, so nothing reserves a name during a long encode.
 4. On any failure or cancellation, deletes the temporary file and rethrows.
 
-**Fixed settings.** `FixedCompressionSettings` matches the API's shipped defaults: `Balanced`, short side capped at 1080 and fps at 30 (both following the source below that), preset `slow`. `TwoPass` is set but unused, since it only affects target-size encodes. A settings UI would replace this class.
-
 **Output folder.** `CompressionRunner.DefaultOutputFolder` is `Dynamic Video Compressor` under `Environment.SpecialFolder.MyVideos`, falling back to `~/Videos` where that's empty (a Linux desktop without XDG user directories). Tests pass their own folder to the constructor.
 
 **Outcome text.** A done video's `QueueItemViewModel.SizeChange` compares the output's size with the source's ("45.2 MB → 12.1 MB, 73% smaller", or "… 20% larger than the original"), and its `QueueItemViewModel.Details` is "Saved to <path>" plus any warnings; a failed one's `Details` is the reason. Sizes use 1024-based units labelled KB/MB/GB, as Windows Explorer does, and all numbers are formatted the same on every locale since the text is English. The reason follows the API worker's rule: a `CompressionFailedException`'s message as-is, anything else a generic message, with the full exception logged either way.
+
+## Settings
+
+One set of settings applies to the whole queue. The queue reads `SettingsStore.Current` when each video starts, so a change applies to every video still waiting and not to the one being compressed. The panel says so.
+
+**The model.** `CompressionSettings` is an immutable record: `Quality` (a tier name), `MaxShortSide` and `MaxFps` (null for the source's own), `EncoderPreset`, `AimForFileSize` and `TargetSizeMb`. Its defaults match the API's shipped defaults (`Balanced`, short side capped at 1080 and fps at 30, preset `slow`). `CreateRequest` builds Core's `CompressionRequest`:
+
+- Resolution and framerate always go in as caps (`DefaultMaxShortSide`, `DefaultMaxFps`), never as the exact `ShortSide`/`Fps`. Core honours an exact value as-is, upscaling included, while a desktop user picking "1080p" means "no bigger than 1080p". Null means no cap.
+- The choices on offer are `ShortSideCaps` (every short side in `ResolutionDefinitions.ShortSides`, largest first) and `FpsCaps` (60, 30, 24).
+- Aiming for a file size sends `TargetSizeBytes` instead of `QualityPreference`. MB are 1024 × 1024 bytes (`BytesPerMb`), matching how the app shows sizes. The size is kept while aiming for one is off, so turning it back on restores it. `TwoPass` is always on, the engine's usual choice; it isn't a setting.
+
+**The file.** `SettingsStore` loads `%AppData%\Dynamic Video Compressor\settings.json` (`Environment.SpecialFolder.ApplicationData`) once, when it's created, and `Update` writes the whole record whenever a setting changes. It writes a `.tmp` file beside it and moves that over the file, so a crash mid-write can't leave half a file. A failed write is logged and the settings still apply for the session. The JSON uses camelCase names, and the computed `TargetSizeBytes` is left out.
+
+Loading never fails: `SettingsStore.Parse` reads each property on its own from a `JsonObject` instead of deserializing the record, so one bad value doesn't throw away the rest.
+
+- A missing file means a first run, and gives the defaults silently. An unreadable file, text that isn't JSON, or JSON that isn't an object also gives the defaults, and the read failure is logged.
+- A missing property, a value of the wrong type, or a value no longer on offer (an unknown tier or preset, a cap not in the lists, a size out of range) gets that setting's default.
+- For the caps, an explicit `null` is a valid value, meaning the source's own, so it's told apart from a missing property.
+- Tier and preset names are matched ignoring case and stored as the definitions spell them.
+
+**The panel.** `SettingsViewModel` offers each setting as a list of `SettingOption<T>` (value, label, description). `ToString` returns the label, so a `ComboBox` shows it without a template, which sidesteps compiled bindings on a generic type. Tier labels come from splitting the tier names ("SmallerSize" becomes "Smaller size"), and preset descriptions come straight from the definitions. Every change saves at once through `SettingsStore.Update`. While the saved settings are being applied to the choices (on load and on reset), an `_applying` flag stops those changes from saving straight back. A list reporting nothing picked, which a `ComboBox` can do briefly, and an empty or out-of-range MB box both keep that setting as it was. **Reset to defaults** is enabled only while the settings differ from the defaults. The preset and file-size choices sit under an "Advanced" expander. While aiming for a file size, the quality list is disabled, with a note saying why.
 
 ## Closing with work left
 
@@ -102,8 +124,11 @@ The root `CLAUDE.md`'s comment rules apply. `///` goes on the public members of 
 
 - `FfmpegCheck.HasEncoder`'s parsing, and `FfmpegCheck.CheckAsync` and `MainWindowViewModel.CheckFfmpegAsync` with missing executables. The working-ffmpeg path depends on the machine, so it isn't tested.
 - `OutputNaming`: the extension change, collision numbering, and never overwriting, in a temporary folder.
-- `CompressionRunner` and `QueueViewModel`, with a fake `IVideoCompressionService` (`TestSupport.cs`) whose probe returns a fixed source, fails, or holds until released, and whose encode writes a partial file, reports set progress, and then succeeds, throws, or holds until released or cancelled: naming, cleanup on failure and cancellation, processing order, pause and resume, stop now, remove, retry, clear finished, skipped files, failure messages, the close warning, probing on add (details, failing on add, waiting for a slow probe, probing once), progress reaching the item and the size change. Everything up to a held probe or encode runs synchronously, so most tests need no waiting; tests that release or cancel one, or wait for a progress report (`Progress<T>` posts to the thread pool without a UI thread), poll with `Wait.UntilAsync`.
+- `CompressionRunner` and `QueueViewModel`, with a fake `IVideoCompressionService` (`TestSupport.cs`) whose probe returns a fixed source, fails, or holds until released, and whose encode writes a partial file, reports set progress, and then succeeds, throws, or holds until released or cancelled: naming, cleanup on failure and cancellation, processing order, pause and resume, stop now, remove, retry, clear finished, skipped files, failure messages, the close warning, probing on add (details, failing on add, waiting for a slow probe, probing once), progress reaching the item, the size change, settings being read as each video starts (the fake records each plan), and a file size too small to encode. Tests give the queue a `SettingsStore` over a temporary file (`TestSettings.Store`).
+- `CompressionSettings`: the defaults, and the request each choice builds, including the file-size mode.
+- `SettingsStore`: the save and load round trip, the JSON written, a failed write, a missing file, corrupt files, invalid values falling back one at a time, missing properties, explicit null caps and case-insensitive names.
+- `SettingsViewModel`: the choices and their labels, showing saved settings, saving on change, the file-size mode, an empty or invalid MB box, and Reset to defaults. Everything up to a held probe or encode runs synchronously, so most tests need no waiting; tests that release or cancel one, or wait for a progress report (`Progress<T>` posts to the thread pool without a UI thread), poll with `Wait.UntilAsync`.
 - `QueueItemViewModel.ReportProgress`: percentages, stages, unknown duration and the time remaining, including after a redo.
 - `DisplayText`: file sizes, durations, source details, size changes and the time remaining.
 
-The real encode, the file picker, drag and drop, the views and the close confirmation aren't covered by tests; check them by hand.
+The real encode, the file picker, drag and drop, the views (including the settings panel's bindings) and the close confirmation aren't covered by tests; check them by hand.

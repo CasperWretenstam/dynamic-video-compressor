@@ -9,17 +9,23 @@ public class QueueViewModelTests : IDisposable
 {
     private readonly TempFolder _sources = new();
     private readonly TempFolder _output = new();
+    private readonly TempFolder _settingsFolder = new();
     private readonly FakeCompressionService _compressionService = new();
+    private readonly SettingsStore _settings;
+
+    public QueueViewModelTests() => _settings = TestSettings.Store(_settingsFolder);
 
     public void Dispose()
     {
         _sources.Dispose();
         _output.Dispose();
+        _settingsFolder.Dispose();
     }
 
     private QueueViewModel CreateQueue(bool ffmpegReady = true, params string[] pickedPaths) => new(
         new FakeFilePicker(pickedPaths),
         new CompressionRunner(_compressionService, NullLogger<CompressionRunner>.Instance, _output.Path),
+        _settings,
         NullLogger<QueueViewModel>.Instance)
     {
         IsFfmpegReady = ffmpegReady,
@@ -358,6 +364,40 @@ public class QueueViewModelTests : IDisposable
         Assert.Empty(_output.FileNames());
         Assert.False(queue.IsCompressing);
         Assert.Equal(QueueItemStatus.Waiting, Item(queue, clip).Status);
+    }
+
+    [Fact]
+    public async Task Settings_AreReadAsEachVideoStarts()
+    {
+        var first = _sources.File("first.mov");
+        var second = _sources.File("second.mov");
+        var queue = CreateQueue();
+        _compressionService.HoldEncodes = true;
+
+        queue.AddVideos([first, second]);
+        _settings.Update(_settings.Current with { EncoderPreset = "veryfast", MaxShortSide = 720 });
+        _compressionService.ReleaseEncode();
+        _compressionService.ReleaseEncode();
+        await Wait.UntilAsync(() => _compressionService.EncodedPlans.Count == 2);
+        await queue.WhenIdleAsync();
+
+        var plans = _compressionService.EncodedPlans;
+        Assert.Equal(("slow", 1080), (plans[0].Output.EncoderPreset, plans[0].Output.Height));
+        Assert.Equal(("veryfast", 720), (plans[1].Output.EncoderPreset, plans[1].Output.Height));
+    }
+
+    [Fact]
+    public async Task AFileSizeTooSmallForTheVideo_FailsItWithTheReason()
+    {
+        var clip = _sources.File("clip.mov");
+        var queue = CreateQueue();
+        _settings.Update(_settings.Current with { AimForFileSize = true, TargetSizeMb = 0.1m });
+
+        queue.AddVideos([clip]);
+        await queue.WhenIdleAsync();
+
+        Assert.Equal(QueueItemStatus.Failed, Item(queue, clip).Status);
+        Assert.Contains("too small", Item(queue, clip).Details);
     }
 
     [Fact]

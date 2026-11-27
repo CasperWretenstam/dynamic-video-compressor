@@ -52,11 +52,13 @@ public partial class App : Application
         builder.Services.AddSingleton<IVideoCompressionService, VideoCompressionService>();
         builder.Services.AddSingleton<FfmpegCheck>();
         builder.Services.AddSingleton<CompressionRunner>();
+        builder.Services.AddSingleton<SettingsStore>();
         builder.Services.AddSingleton<MainWindow>();
         // The file picker opens over the main window.
         builder.Services.AddSingleton<IVideoFilePicker>(services =>
             new VideoFilePicker(services.GetRequiredService<MainWindow>()));
         builder.Services.AddSingleton<QueueViewModel>();
+        builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<MainWindowViewModel>();
 
         return builder.Build();

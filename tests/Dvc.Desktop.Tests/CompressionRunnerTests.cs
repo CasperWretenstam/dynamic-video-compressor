@@ -69,7 +69,7 @@ public class CompressionRunnerTests : IDisposable
         using var cancellation = new CancellationTokenSource();
 
         var probed = await runner.ProbeAsync(source, CancellationToken.None);
-        var compression = runner.CompressAsync(probed, progress: null, cancellation.Token);
+        var compression = runner.CompressAsync(probed, CompressionSettings.Default, progress: null, cancellation.Token);
         await WaitForFileAsync(runner.OutputFolder);
         await cancellation.CancelAsync();
 
@@ -111,30 +111,16 @@ public class CompressionRunnerTests : IDisposable
         var received = new List<EncodeProgress>();
 
         var probed = await runner.ProbeAsync(source, CancellationToken.None);
-        var video = await runner.CompressAsync(probed, new ListProgress(received), CancellationToken.None);
+        var video = await runner.CompressAsync(probed, CompressionSettings.Default, new ListProgress(received), CancellationToken.None);
 
         Assert.Equal(FakeCompressionService.EncodedContent.Length, video.SizeBytes);
         Assert.Equal([report], received);
     }
 
-    [Fact]
-    public void FixedSettings_MatchTheServicesShippedDefaults()
-    {
-        var request = FixedCompressionSettings.CreateRequest("Videos/clip.mov");
-
-        Assert.Equal("Balanced", request.QualityPreference);
-        Assert.Null(request.TargetSizeBytes);
-        Assert.Null(request.ShortSide);
-        Assert.Null(request.Fps);
-        Assert.Equal(1080, request.DefaultMaxShortSide);
-        Assert.Equal(30, request.DefaultMaxFps);
-        Assert.Equal("slow", request.EncoderPreset);
-    }
-
     private static async Task<CompressedVideo> CompressAsync(CompressionRunner runner, string source)
     {
         var probed = await runner.ProbeAsync(source, CancellationToken.None);
-        return await runner.CompressAsync(probed, progress: null, CancellationToken.None);
+        return await runner.CompressAsync(probed, CompressionSettings.Default, progress: null, CancellationToken.None);
     }
 
     // Collects reports as they're made, on the reporting thread.

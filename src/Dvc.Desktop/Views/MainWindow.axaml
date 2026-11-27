@@ -6,30 +6,35 @@
         x:DataType="vm:MainWindowViewModel"
         Title="Dynamic Video Compressor"
         Width="900" Height="600"
-        MinWidth="560" MinHeight="360"
+        MinWidth="720" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         DragDrop.AllowDrop="{Binding IsFfmpegReady}">
 
     <DockPanel>
         <!-- Toolbar -->
         <Border Classes="bar" DockPanel.Dock="Top">
-            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ControlSpacing}">
-                <Button Classes="accent"
-                        Content="Add videos"
-                        Command="{Binding Queue.AddVideosCommand}" />
-                <Button Content="Pause"
-                        ToolTip.Tip="Finish the current video, then stop"
-                        IsVisible="{Binding !Queue.IsPaused}"
-                        Command="{Binding Queue.PauseCommand}" />
-                <Button Content="Resume"
-                        IsVisible="{Binding Queue.IsPaused}"
-                        Command="{Binding Queue.ResumeCommand}" />
-                <Button Content="Stop now"
-                        ToolTip.Tip="Stop the current video and pause. It stays first in the queue."
-                        Command="{Binding Queue.StopNowCommand}" />
-                <Button Content="Clear finished"
-                        Command="{Binding Queue.ClearFinishedCommand}" />
-            </StackPanel>
+            <DockPanel>
+                <ToggleButton DockPanel.Dock="Right"
+                              Content="Settings"
+                              IsChecked="{Binding IsSettingsOpen}" />
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource ControlSpacing}">
+                    <Button Classes="accent"
+                            Content="Add videos"
+                            Command="{Binding Queue.AddVideosCommand}" />
+                    <Button Content="Pause"
+                            ToolTip.Tip="Finish the current video, then stop"
+                            IsVisible="{Binding !Queue.IsPaused}"
+                            Command="{Binding Queue.PauseCommand}" />
+                    <Button Content="Resume"
+                            IsVisible="{Binding Queue.IsPaused}"
+                            Command="{Binding Queue.ResumeCommand}" />
+                    <Button Content="Stop now"
+                            ToolTip.Tip="Stop the current video and pause. It stays first in the queue."
+                            Command="{Binding Queue.StopNowCommand}" />
+                    <Button Content="Clear finished"
+                            Command="{Binding Queue.ClearFinishedCommand}" />
+                </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- Status bar -->
@@ -37,6 +42,14 @@
             <TextBlock Classes="secondary"
                        Text="{Binding Queue.Summary}"
                        TextTrimming="CharacterEllipsis" />
+        </Border>
+
+        <!-- Settings, beside the queue -->
+        <Border Classes="panel"
+                DockPanel.Dock="Right"
+                Width="300"
+                IsVisible="{Binding IsSettingsOpen}">
+            <views:SettingsView DataContext="{Binding Settings}" />
         </Border>
 
         <DockPanel Margin="{StaticResource PagePadding}">

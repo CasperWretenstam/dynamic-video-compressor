@@ -5,9 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace Dvc.Desktop.Services;
 
 /// <summary>
-/// Compresses one video into the output folder with the app's fixed
-/// settings (<c>FixedCompressionSettings</c>), leaving the source untouched
-/// and never overwriting a file.
+/// Compresses one video into the output folder, leaving the source
+/// untouched and never overwriting a file.
 /// </summary>
 /// <param name="outputFolder">
 /// Where compressed videos go, created when first needed. Null uses the
@@ -46,10 +45,10 @@ public sealed class CompressionRunner(
     }
 
     /// <summary>
-    /// Compresses a probed video. The encode is written to a temporary file
-    /// in the output folder and only given its final name once it's
-    /// finished, so a half-written file never looks done. On failure or
-    /// cancellation the temporary file is deleted.
+    /// Compresses a probed video with the given settings. The encode is
+    /// written to a temporary file in the output folder and only given its
+    /// final name once it's finished, so a half-written file never looks
+    /// done. On failure or cancellation the temporary file is deleted.
     /// </summary>
     /// <param name="progress">
     /// Receives how far along the encode is, several times a second, on a
@@ -57,14 +56,16 @@ public sealed class CompressionRunner(
     /// </param>
     /// <remarks>
     /// Throws <c>CompressionFailedException</c> for a failure whose message
-    /// can be shown to the user.
+    /// can be shown to the user, such as a file size too small for the
+    /// video's length.
     /// </remarks>
     public async Task<CompressedVideo> CompressAsync(
-        SourceVideo source, IProgress<EncodeProgress>? progress, CancellationToken cancellationToken)
+        SourceVideo source, CompressionSettings settings, IProgress<EncodeProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var inputPath = source.Path;
 
-        var request = FixedCompressionSettings.CreateRequest(inputPath);
+        var request = settings.CreateRequest(inputPath);
         var output = CompressionPlanner.PlanOutput(request, source.Info);
         var plan = CompressionPlanner.PlanEncode(request, source.Info, output);
 

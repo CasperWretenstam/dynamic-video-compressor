@@ -5,12 +5,20 @@ namespace Dvc.Desktop.ViewModels;
 
 /// <summary>
 /// The main window's state: whether ffmpeg is usable, the message explaining
-/// what's missing if it isn't, and the compression queue.
+/// what's missing if it isn't, the compression queue and the settings panel.
 /// </summary>
-public partial class MainWindowViewModel(FfmpegCheck ffmpegCheck, QueueViewModel queue) : ObservableObject
+public partial class MainWindowViewModel(FfmpegCheck ffmpegCheck, QueueViewModel queue, SettingsViewModel settings)
+    : ObservableObject
 {
     /// <summary>The compression queue the window shows.</summary>
     public QueueViewModel Queue { get; } = queue;
+
+    /// <summary>The settings panel beside the queue.</summary>
+    public SettingsViewModel Settings { get; } = settings;
+
+    /// <summary>Whether the settings panel is showing. It starts open.</summary>
+    [ObservableProperty]
+    public partial bool IsSettingsOpen { get; set; } = true;
 
     /// <summary>
     /// The message the window shows until ffmpeg is ready: that the check is
