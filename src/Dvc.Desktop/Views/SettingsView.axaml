@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Dvc.Desktop.ViewModels"
+             xmlns:services="using:Dvc.Desktop.Services"
+             x:Class="Dvc.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="16">
+            <StackPanel Spacing="4">
+                <TextBlock Classes="title" Text="Settings" />
+                <TextBlock Classes="secondary"
+                           Text="Changes apply to every video that hasn't started compressing yet."
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Classes="title" Text="Quality" />
+                <ComboBox HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding QualityOptions}"
+                          SelectedItem="{Binding SelectedQuality}"
+                          IsEnabled="{Binding IsQualityEnabled}" />
+                <TextBlock Classes="secondary"
+                           Text="{Binding SelectedQuality.Description}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding IsQualityEnabled}" />
+                <TextBlock Classes="secondary"
+                           Text="Not used while aiming for a file size (under Advanced)."
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding AimForFileSize}" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Classes="title" Text="Resolution" />
+                <ComboBox HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding ResolutionOptions}"
+                          SelectedItem="{Binding SelectedResolution}" />
+                <TextBlock Classes="secondary"
+                           Text="Never upscales: a smaller video keeps its own resolution."
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Classes="title" Text="Framerate" />
+                <ComboBox HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding FramerateOptions}"
+                          SelectedItem="{Binding SelectedFramerate}" />
+                <TextBlock Classes="secondary"
+                           Text="Never raised: a slower video keeps its own framerate."
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Expander Header="Advanced" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="title" Text="Encoder preset" />
+                        <ComboBox HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding PresetOptions}"
+                                  SelectedItem="{Binding SelectedPreset}" />
+                        <TextBlock Classes="secondary"
+                                   Text="{Binding SelectedPreset.Description}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <CheckBox Content="Aim for a file size instead of a quality"
+                                  IsChecked="{Binding AimForFileSize}" />
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource ControlSpacing}">
+                            <NumericUpDown Width="140"
+                                           Value="{Binding TargetSizeMb}"
+                                           Minimum="{x:Static services:CompressionSettings.MinTargetSizeMb}"
+                                           Maximum="{x:Static services:CompressionSettings.MaxTargetSizeMb}"
+                                           Increment="1"
+                                           FormatString="0.##"
+                                           IsEnabled="{Binding AimForFileSize}" />
+                            <TextBlock VerticalAlignment="Center" Text="MB" />
+                        </StackPanel>
+                        <TextBlock Classes="secondary"
+                                   Text="Encodes in two passes to land just under this size. The quality then depends on how long and how complex the video is."
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+
+            <Button Content="Reset to defaults"
+                    Command="{Binding ResetToDefaultsCommand}" />
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

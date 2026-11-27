@@ -31,6 +31,7 @@ public partial class QueueViewModel : ObservableObject
 
     private readonly IVideoFilePicker _filePicker;
     private readonly CompressionRunner _compressionRunner;
+    private readonly SettingsStore _settingsStore;
     private readonly ILogger<QueueViewModel> _logger;
     private readonly SemaphoreSlim _probeSlots = new(MaxConcurrentProbes);
 
@@ -45,10 +46,13 @@ public partial class QueueViewModel : ObservableObject
     // rather than to put it back in the queue.
     private bool _removeCurrentWhenStopped;
 
-    public QueueViewModel(IVideoFilePicker filePicker, CompressionRunner compressionRunner, ILogger<QueueViewModel> logger)
+    public QueueViewModel(
+        IVideoFilePicker filePicker, CompressionRunner compressionRunner, SettingsStore settingsStore,
+        ILogger<QueueViewModel> logger)
     {
         _filePicker = filePicker;
         _compressionRunner = compressionRunner;
+        _settingsStore = settingsStore;
         _logger = logger;
         Items.CollectionChanged += (_, _) => OnQueueChanged();
     }
@@ -427,7 +431,10 @@ public partial class QueueViewModel : ObservableObject
             var source = await item.SourceProbe!.WaitAsync(cancellation.Token);
             item.Source = source;
 
-            var video = await _compressionRunner.CompressAsync(source, progress, cancellation.Token);
+            // The settings as they are now, so a change made while videos
+            // wait applies to each one that hasn't started yet.
+            var video = await _compressionRunner.CompressAsync(
+                source, _settingsStore.Current, progress, cancellation.Token);
             item.Status = QueueItemStatus.Done;
             item.SizeChange = DisplayText.SizeChange(source.SizeBytes, video.SizeBytes);
             item.Details = string.Join(Environment.NewLine, [$"Saved to {video.OutputPath}", .. video.Warnings]);

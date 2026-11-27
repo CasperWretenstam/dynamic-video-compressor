@@ -10,12 +10,18 @@ public class MainWindowViewModelTests : IDisposable
 
     public void Dispose() => _folder.Dispose();
 
-    private MainWindowViewModel CreateViewModel(FfmpegCheck? ffmpegCheck = null) => new(
-        ffmpegCheck ?? new FfmpegCheck(NullLogger<FfmpegCheck>.Instance),
-        new QueueViewModel(
-            new FakeFilePicker(),
-            new CompressionRunner(new FakeCompressionService(), NullLogger<CompressionRunner>.Instance, _folder.Path),
-            NullLogger<QueueViewModel>.Instance));
+    private MainWindowViewModel CreateViewModel(FfmpegCheck? ffmpegCheck = null)
+    {
+        var settings = TestSettings.Store(_folder);
+        return new(
+            ffmpegCheck ?? new FfmpegCheck(NullLogger<FfmpegCheck>.Instance),
+            new QueueViewModel(
+                new FakeFilePicker(),
+                new CompressionRunner(new FakeCompressionService(), NullLogger<CompressionRunner>.Instance, _folder.Path),
+                settings,
+                NullLogger<QueueViewModel>.Instance),
+            new SettingsViewModel(settings));
+    }
 
     [Fact]
     public async Task CheckFfmpegAsync_WithFfmpegMissing_SaysWhatsMissingAndWhatToInstall()
