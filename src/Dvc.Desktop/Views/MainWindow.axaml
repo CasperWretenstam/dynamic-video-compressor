@@ -1,17 +1,70 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Dvc.Desktop.ViewModels"
+        xmlns:views="using:Dvc.Desktop.Views"
         x:Class="Dvc.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Dynamic Video Compressor"
-        Width="640" Height="360"
-        WindowStartupLocation="CenterScreen">
+        Width="900" Height="600"
+        MinWidth="560" MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="{Binding IsFfmpegReady}">
 
-    <StackPanel Margin="24" Spacing="16" VerticalAlignment="Center">
-        <Button Content="Choose video"
-                Command="{Binding ChooseVideoCommand}" />
-        <TextBlock Text="{Binding Status}"
-                   TextWrapping="Wrap" />
-    </StackPanel>
+    <DockPanel>
+        <!-- Toolbar -->
+        <Border Classes="bar" DockPanel.Dock="Top">
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ControlSpacing}">
+                <Button Classes="accent"
+                        Content="Add videos"
+                        Command="{Binding Queue.AddVideosCommand}" />
+                <Button Content="Pause"
+                        ToolTip.Tip="Finish the current video, then stop"
+                        IsVisible="{Binding !Queue.IsPaused}"
+                        Command="{Binding Queue.PauseCommand}" />
+                <Button Content="Resume"
+                        IsVisible="{Binding Queue.IsPaused}"
+                        Command="{Binding Queue.ResumeCommand}" />
+                <Button Content="Stop now"
+                        ToolTip.Tip="Stop the current video and pause. It stays first in the queue."
+                        Command="{Binding Queue.StopNowCommand}" />
+                <Button Content="Clear finished"
+                        Command="{Binding Queue.ClearFinishedCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Classes="bar" DockPanel.Dock="Bottom">
+            <TextBlock Classes="secondary"
+                       Text="{Binding Queue.Summary}"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
+
+        <DockPanel Margin="{StaticResource PagePadding}">
+            <!-- Until ffmpeg is ready: the check running, or what's missing. -->
+            <Border Classes="warning"
+                    DockPanel.Dock="Top"
+                    Margin="0,0,0,12"
+                    IsVisible="{Binding !IsFfmpegReady}">
+                <SelectableTextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Files skipped when adding videos. -->
+            <Border Classes="warning"
+                    DockPanel.Dock="Top"
+                    Margin="0,0,0,12"
+                    IsVisible="{Binding Queue.Notice, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="{Binding Queue.Notice}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            Content="Dismiss"
+                            Command="{Binding Queue.DismissNoticeCommand}" />
+                </Grid>
+            </Border>
+
+            <views:QueueView DataContext="{Binding Queue}" />
+        </DockPanel>
+    </DockPanel>
 
 </Window>

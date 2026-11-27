@@ -4,18 +4,18 @@ using Dvc.Core.Definitions;
 
 namespace Dvc.Desktop.Services;
 
-/// <summary>Asks the user to choose one video file.</summary>
+/// <summary>Asks the user to choose video files.</summary>
 public interface IVideoFilePicker
 {
     /// <summary>
-    /// The path of the video the user chose, or null if they cancelled or
-    /// chose a file that isn't on this machine.
+    /// The paths of the videos the user chose: empty if they cancelled.
+    /// Files that aren't on this machine are left out.
     /// </summary>
-    Task<string?> PickVideoAsync();
+    Task<IReadOnlyList<string>> PickVideosAsync();
 }
 
 /// <summary>
-/// Asks the user to choose one video with the system's file picker, showing
+/// Asks the user to choose videos with the system's file picker, showing
 /// only the file types the engine reads (<c>VideoFileDefinitions.SupportedExtensions</c>).
 /// </summary>
 /// <param name="owner">The window the picker opens over.</param>
@@ -26,17 +26,17 @@ public sealed class VideoFilePicker(TopLevel owner) : IVideoFilePicker
         Patterns = [.. VideoFileDefinitions.SupportedExtensions.Select(extension => $"*{extension}")],
     };
 
-    public async Task<string?> PickVideoAsync()
+    public async Task<IReadOnlyList<string>> PickVideosAsync()
     {
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose a video to compress",
-            AllowMultiple = false,
+            Title = "Choose videos to compress",
+            AllowMultiple = true,
             FileTypeFilter = [VideoFiles],
         });
 
         // A file from a remote or virtual location has no local path for
         // ffmpeg to read.
-        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        return [.. files.Select(file => file.TryGetLocalPath()).OfType<string>()];
     }
 }

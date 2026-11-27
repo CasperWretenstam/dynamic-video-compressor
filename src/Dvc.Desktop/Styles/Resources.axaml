@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The app's own colours, with a light and a dark version each. The
+         Fluent theme picks one to match the system's theme. -->
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#08000000" />
+            <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#1F000000" />
+            <SolidColorBrush x:Key="BarBrush" Color="#0D000000" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="#0F7B0F" />
+            <SolidColorBrush x:Key="DangerBrush" Color="#C42B1C" />
+            <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#FFF4CE" />
+            <SolidColorBrush x:Key="WarningBorderBrush" Color="#E6C766" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#0DFFFFFF" />
+            <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="BarBrush" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="#6CCB5F" />
+            <SolidColorBrush x:Key="DangerBrush" Color="#FF99A4" />
+            <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#433519" />
+            <SolidColorBrush x:Key="WarningBorderBrush" Color="#7A6324" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- Spacing used across the window. -->
+    <Thickness x:Key="PagePadding">16</Thickness>
+    <Thickness x:Key="BarPadding">16,10</Thickness>
+    <Thickness x:Key="CardPadding">12,10</Thickness>
+    <x:Double x:Key="ControlSpacing">8</x:Double>
+    <CornerRadius x:Key="CardCornerRadius">6</CornerRadius>
+
+</ResourceDictionary>

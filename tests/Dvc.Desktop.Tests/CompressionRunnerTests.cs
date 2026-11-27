@@ -65,7 +65,7 @@ public class CompressionRunnerTests : IDisposable
     {
         var source = _sources.File("clip.mov");
         var runner = CreateRunner();
-        _compressionService.EncodeUntilCancelled = true;
+        _compressionService.HoldEncodes = true;
         using var cancellation = new CancellationTokenSource();
 
         var compression = runner.CompressAsync(source, cancellation.Token);
