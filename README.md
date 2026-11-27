@@ -169,12 +169,14 @@ An early version: it compresses a queue of videos one at a time, with fixed sett
 dotnet run --project src/Dvc.Desktop
 ```
 
-Click **Add videos** and pick one or more videos (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`, `.flv`, `.wmv` or `.m4v`), or drag them onto the window. They join the queue and are compressed one at a time, in the order added. Each video in the list says whether it's waiting, being compressed, done (with where the file went) or failed (with why). There's no progress bar yet, and a long video can take a while at the `slow` preset.
+Click **Add videos** and pick one or more videos (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`, `.flv`, `.wmv` or `.m4v`), or drag them onto the window. They join the queue and are compressed one at a time, in the order added.
+
+Each video in the list shows its resolution, duration, framerate and size a moment after it's added. A file that turns out not to be a readable video is marked failed straight away, with why. The video being compressed has a progress bar with the percentage done. After the first few seconds, an estimate of the time left appears beside the bar. A finished video shows where the file went and how much smaller it came out (e.g. "45.2 MB → 12.1 MB, 73% smaller"); a video that came out larger than the original says so. The status bar shows how far through the queue you are (e.g. "3 of 8 done").
 
 - **Pause** lets the current video finish, then stops. **Resume** carries on with the next one. Videos added while paused wait until you resume.
 - **Stop now** stops the current video straight away and pauses the queue. That video stays first in line and starts again from the beginning when you resume.
 - **Remove** takes a video out of the queue. On the video being compressed, it stops that compression and the queue moves on to the next one.
-- **Retry** puts a failed video back at the end of the queue.
+- **Retry** puts a failed video back at the end of the queue. A video that couldn't be read is checked again, so you can fix or replace the file and retry.
 - **Clear finished** removes done and failed videos from the list. The compressed files stay where they are.
 
 Files that aren't supported videos, folders, and videos already in the queue are skipped, with a message naming them. The queue isn't saved: closing the app while videos are waiting or one is being compressed asks first, then stops the compression and empties the queue.

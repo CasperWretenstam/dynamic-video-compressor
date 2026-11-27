@@ -32,6 +32,30 @@
                                                TextTrimming="CharacterEllipsis"
                                                ToolTip.Tip="{Binding InputPath}" />
                                     <TextBlock Classes="secondary"
+                                               Text="{Binding SourceDetails}"
+                                               TextTrimming="CharacterEllipsis"
+                                               IsVisible="{Binding SourceDetails, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                                    <!-- While compressing. The bar has no fixed end until
+                                         progress can be measured. -->
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="12"
+                                          Margin="0,4"
+                                          IsVisible="{Binding IsCompressing}">
+                                        <ProgressBar VerticalAlignment="Center"
+                                                     Maximum="100"
+                                                     Value="{Binding ProgressPercent}"
+                                                     IsIndeterminate="{Binding !IsProgressKnown}" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="secondary"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding TimeRemaining}" />
+                                    </Grid>
+
+                                    <TextBlock Text="{Binding SizeChange}"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding SizeChange, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                    <TextBlock Classes="secondary"
                                                Classes.danger="{Binding IsFailed}"
                                                Text="{Binding Details}"
                                                TextWrapping="Wrap"

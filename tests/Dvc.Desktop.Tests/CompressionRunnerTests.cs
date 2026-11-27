@@ -25,7 +25,7 @@ public class CompressionRunnerTests : IDisposable
         var source = _sources.File("clip.mov", "original");
         var runner = CreateRunner();
 
-        var video = await runner.CompressAsync(source, CancellationToken.None);
+        var video = await CompressAsync(runner, source);
 
         Assert.Equal(Path.Combine(runner.OutputFolder, "clip.mp4"), video.OutputPath);
         Assert.Equal(FakeCompressionService.EncodedContent, File.ReadAllText(video.OutputPath));
@@ -39,8 +39,8 @@ public class CompressionRunnerTests : IDisposable
         var source = _sources.File("clip.mov");
         var runner = CreateRunner();
 
-        var first = await runner.CompressAsync(source, CancellationToken.None);
-        var second = await runner.CompressAsync(source, CancellationToken.None);
+        var first = await CompressAsync(runner, source);
+        var second = await CompressAsync(runner, source);
 
         Assert.Equal(Path.Combine(runner.OutputFolder, "clip.mp4"), first.OutputPath);
         Assert.Equal(Path.Combine(runner.OutputFolder, "clip (1).mp4"), second.OutputPath);
@@ -54,7 +54,7 @@ public class CompressionRunnerTests : IDisposable
         _compressionService.EncodeFailure = new CompressionFailedException("The encode failed.");
 
         var ex = await Assert.ThrowsAsync<CompressionFailedException>(
-            () => runner.CompressAsync(source, CancellationToken.None));
+            () => CompressAsync(runner, source));
 
         Assert.Equal("The encode failed.", ex.Message);
         Assert.Empty(Directory.GetFiles(runner.OutputFolder));
@@ -68,7 +68,8 @@ public class CompressionRunnerTests : IDisposable
         _compressionService.HoldEncodes = true;
         using var cancellation = new CancellationTokenSource();
 
-        var compression = runner.CompressAsync(source, cancellation.Token);
+        var probed = await runner.ProbeAsync(source, CancellationToken.None);
+        var compression = runner.CompressAsync(probed, progress: null, cancellation.Token);
         await WaitForFileAsync(runner.OutputFolder);
         await cancellation.CancelAsync();
 
@@ -77,15 +78,43 @@ public class CompressionRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task CompressAsync_WithAnUnsupportedExtension_FailsBeforeProbing()
+    public async Task ProbeAsync_WithAnUnsupportedExtension_FailsBeforeProbing()
     {
         var source = _sources.File("notes.txt");
         var runner = CreateRunner();
 
-        await Assert.ThrowsAsync<CompressionFailedException>(() => runner.CompressAsync(source, CancellationToken.None));
+        await Assert.ThrowsAsync<CompressionFailedException>(() => runner.ProbeAsync(source, CancellationToken.None));
 
         Assert.Equal(0, _compressionService.ProbeCount);
-        Assert.False(Directory.Exists(runner.OutputFolder));
+    }
+
+    [Fact]
+    public async Task ProbeAsync_ReturnsWhatFfprobeFoundAndTheFilesSize()
+    {
+        var source = _sources.File("clip.mov", new string('x', 2048));
+        var runner = CreateRunner();
+
+        var probed = await runner.ProbeAsync(source, CancellationToken.None);
+
+        Assert.Equal(source, probed.Path);
+        Assert.Equal(FakeCompressionService.Source, probed.Info);
+        Assert.Equal(2048, probed.SizeBytes);
+    }
+
+    [Fact]
+    public async Task CompressAsync_ReturnsTheOutputsSizeAndPassesProgressOn()
+    {
+        var source = _sources.File("clip.mov");
+        var runner = CreateRunner();
+        var report = EncodeProgress.At(TimeSpan.FromSeconds(5), 10, EncodePass.Single, attempt: 1);
+        _compressionService.ProgressReports.Add(report);
+        var received = new List<EncodeProgress>();
+
+        var probed = await runner.ProbeAsync(source, CancellationToken.None);
+        var video = await runner.CompressAsync(probed, new ListProgress(received), CancellationToken.None);
+
+        Assert.Equal(FakeCompressionService.EncodedContent.Length, video.SizeBytes);
+        Assert.Equal([report], received);
     }
 
     [Fact]
@@ -100,6 +129,18 @@ public class CompressionRunnerTests : IDisposable
         Assert.Equal(1080, request.DefaultMaxShortSide);
         Assert.Equal(30, request.DefaultMaxFps);
         Assert.Equal("slow", request.EncoderPreset);
+    }
+
+    private static async Task<CompressedVideo> CompressAsync(CompressionRunner runner, string source)
+    {
+        var probed = await runner.ProbeAsync(source, CancellationToken.None);
+        return await runner.CompressAsync(probed, progress: null, CancellationToken.None);
+    }
+
+    // Collects reports as they're made, on the reporting thread.
+    private sealed class ListProgress(List<EncodeProgress> reports) : IProgress<EncodeProgress>
+    {
+        public void Report(EncodeProgress value) => reports.Add(value);
     }
 
     // The fake encode writes its partial output before waiting to be

@@ -42,7 +42,7 @@ public class QueueViewModelTests : IDisposable
         Assert.All(queue.Items, item => Assert.Equal(QueueItemStatus.Done, item.Status));
         Assert.Equal($"Saved to {Path.Combine(_output.Path, "first.mp4")}", Item(queue, first).Details);
         Assert.Equal(["first.mp4", "second.mp4"], _output.FileNames());
-        Assert.Equal("Queue finished.", queue.Summary);
+        Assert.Equal("Queue finished · 2 of 2 done", queue.Summary);
         Assert.Null(queue.CurrentItem);
     }
 
@@ -133,7 +133,7 @@ public class QueueViewModelTests : IDisposable
 
         queue.AddVideos([first, second]);
         queue.PauseCommand.Execute(null);
-        Assert.Equal("Compressing first.mov · 1 waiting · Pausing after this video", queue.Summary);
+        Assert.Equal("Compressing first.mov · 0 of 2 done · Pausing after this video", queue.Summary);
 
         _compressionService.ReleaseEncode();
         await queue.WhenIdleAsync();
@@ -141,7 +141,7 @@ public class QueueViewModelTests : IDisposable
         Assert.Equal(QueueItemStatus.Done, Item(queue, first).Status);
         Assert.Equal(QueueItemStatus.Waiting, Item(queue, second).Status);
         Assert.Equal([first], _compressionService.EncodedInputs);
-        Assert.Equal("Paused · 1 waiting", queue.Summary);
+        Assert.Equal("Paused · 1 of 2 done", queue.Summary);
     }
 
     [Fact]
@@ -358,5 +358,162 @@ public class QueueViewModelTests : IDisposable
         Assert.Empty(_output.FileNames());
         Assert.False(queue.IsCompressing);
         Assert.Equal(QueueItemStatus.Waiting, Item(queue, clip).Status);
+    }
+
+    [Fact]
+    public void AddVideos_ShowsEachVideosDetailsOnceProbed()
+    {
+        var clip = _sources.File("clip.mov", new string('x', 2048));
+        var queue = CreateQueue();
+        queue.PauseCommand.Execute(null);
+
+        queue.AddVideos([clip]);
+
+        Assert.Equal("1920×1080 · 0:10 · 30 fps · 2.0 KB", Item(queue, clip).SourceDetails);
+        Assert.Equal(QueueItemStatus.Waiting, Item(queue, clip).Status);
+    }
+
+    [Fact]
+    public void AddVideos_AFileFfprobeCantRead_IsMarkedFailedStraightAway()
+    {
+        var broken = _sources.File("broken.mp4", "not a video");
+        var fine = _sources.File("fine.mp4");
+        var queue = CreateQueue();
+        queue.PauseCommand.Execute(null);
+        _compressionService.FailingProbes.Add(broken);
+
+        queue.AddVideos([broken, fine]);
+
+        Assert.Equal(QueueItemStatus.Failed, Item(queue, broken).Status);
+        Assert.Equal(FakeCompressionService.UnreadableMessage, Item(queue, broken).Details);
+        Assert.Null(Item(queue, broken).SourceDetails);
+        Assert.Equal(QueueItemStatus.Waiting, Item(queue, fine).Status);
+        Assert.Equal("Paused · 0 of 2 done · 1 failed", queue.Summary);
+    }
+
+    [Fact]
+    public async Task Compressing_UsesTheProbeFromWhenTheVideoWasAdded()
+    {
+        var queue = CreateQueue();
+
+        queue.AddVideos([_sources.File("first.mov"), _sources.File("second.mov")]);
+        await queue.WhenIdleAsync();
+
+        Assert.Equal(2, _compressionService.ProbeCount);
+    }
+
+    [Fact]
+    public async Task AVideoWhoseTurnComesBeforeItsProbeFinishes_WaitsForIt()
+    {
+        var clip = _sources.File("clip.mov");
+        var queue = CreateQueue();
+        _compressionService.HoldProbes = true;
+
+        queue.AddVideos([clip]);
+
+        Assert.Equal(QueueItemStatus.Compressing, Item(queue, clip).Status);
+        Assert.Empty(_compressionService.EncodedInputs);
+
+        _compressionService.ReleaseProbe();
+        await Wait.UntilAsync(() => Item(queue, clip).Status == QueueItemStatus.Done);
+        await queue.WhenIdleAsync();
+        Assert.Equal(1, _compressionService.ProbeCount);
+    }
+
+    [Fact]
+    public async Task AProbeThatFailsOnceTheVideosTurnHasCome_FailsTheVideo()
+    {
+        var broken = _sources.File("broken.mp4");
+        var queue = CreateQueue();
+        _compressionService.HoldProbes = true;
+        _compressionService.FailingProbes.Add(broken);
+
+        queue.AddVideos([broken]);
+        _compressionService.ReleaseProbe();
+
+        await Wait.UntilAsync(() => Item(queue, broken).Status == QueueItemStatus.Failed);
+        await queue.WhenIdleAsync();
+        Assert.Equal(FakeCompressionService.UnreadableMessage, Item(queue, broken).Details);
+        Assert.Empty(_compressionService.EncodedInputs);
+    }
+
+    [Fact]
+    public async Task StopNow_WhileTheVideoWaitsForItsProbe_StopsStraightAway()
+    {
+        var clip = _sources.File("clip.mov");
+        var queue = CreateQueue();
+        _compressionService.HoldProbes = true;
+
+        queue.AddVideos([clip]);
+        await queue.StopAsync();
+
+        Assert.Equal(QueueItemStatus.Waiting, Item(queue, clip).Status);
+        Assert.Null(queue.CurrentItem);
+        Assert.Empty(_compressionService.EncodedInputs);
+    }
+
+    [Fact]
+    public async Task Retry_OnAVideoThatCouldntBeRead_ProbesItAgain()
+    {
+        var clip = _sources.File("clip.mp4");
+        var queue = CreateQueue();
+        _compressionService.FailingProbes.Add(clip);
+
+        queue.AddVideos([clip]);
+        Assert.Equal(QueueItemStatus.Failed, Item(queue, clip).Status);
+
+        _compressionService.FailingProbes.Clear();
+        queue.RetryCommand.Execute(Item(queue, clip));
+        await queue.WhenIdleAsync();
+
+        Assert.Equal(QueueItemStatus.Done, Item(queue, clip).Status);
+        Assert.Equal(2, _compressionService.ProbeCount);
+        Assert.NotNull(Item(queue, clip).SourceDetails);
+    }
+
+    [Fact]
+    public async Task Progress_ReachesTheVideoBeingCompressed()
+    {
+        var clip = _sources.File("clip.mov");
+        var queue = CreateQueue();
+        _compressionService.HoldEncodes = true;
+        _compressionService.ProgressReports.Add(
+            EncodeProgress.At(TimeSpan.FromSeconds(5), 10, EncodePass.Second, attempt: 1));
+
+        queue.AddVideos([clip]);
+        var item = Item(queue, clip);
+
+        await Wait.UntilAsync(() => item.IsProgressKnown);
+        Assert.Equal(70, item.ProgressPercent, precision: 6);
+        Assert.Equal("Second pass · 70%", item.StatusText);
+
+        _compressionService.ReleaseEncode();
+        await queue.WhenIdleAsync();
+        Assert.False(item.IsProgressKnown);
+        Assert.Null(item.Phase);
+    }
+
+    [Fact]
+    public async Task ADoneVideo_ShowsHowMuchSmallerItCameOut()
+    {
+        var clip = _sources.File("clip.mov", new string('x', 2048));
+        var queue = CreateQueue();
+
+        queue.AddVideos([clip]);
+        await queue.WhenIdleAsync();
+
+        Assert.Equal("2.0 KB → 7 bytes, 99% smaller", Item(queue, clip).SizeChange);
+    }
+
+    [Fact]
+    public async Task ADoneVideo_ThatCameOutLarger_SaysSo()
+    {
+        var clip = _sources.File("clip.mov", "tiny");
+        var queue = CreateQueue();
+
+        queue.AddVideos([clip]);
+        await queue.WhenIdleAsync();
+
+        Assert.Equal("4 bytes → 7 bytes, 75% larger than the original", Item(queue, clip).SizeChange);
     }
 }
