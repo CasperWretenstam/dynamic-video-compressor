@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dvc.Core.Compression;
@@ -15,8 +16,7 @@ namespace Dvc.Desktop.ViewModels;
 /// </summary>
 public partial class QueueViewModel : ObservableObject
 {
-    // Replaces any failure that isn't a CompressionFailedException. Those
-    // mostly carry ffmpeg's raw output, which is logged but not shown.
+    // Shown for any failure that isn't a CompressionFailedException.
     private const string GenericFailureMessage =
         "The video could not be compressed. The file may be corrupt or use an unsupported codec.";
 
@@ -25,9 +25,14 @@ public partial class QueueViewModel : ObservableObject
     private static readonly StringComparer PathComparer =
         OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
+    // How many ffprobe runs may go at once, so adding a hundred videos
+    // doesn't start a hundred processes.
+    private const int MaxConcurrentProbes = 2;
+
     private readonly IVideoFilePicker _filePicker;
     private readonly CompressionRunner _compressionRunner;
     private readonly ILogger<QueueViewModel> _logger;
+    private readonly SemaphoreSlim _probeSlots = new(MaxConcurrentProbes);
 
     // The loop working through the queue, and the video it's compressing.
     // Only touched on the UI thread.
@@ -87,25 +92,35 @@ public partial class QueueViewModel : ObservableObject
     [ObservableProperty]
     public partial string? Notice { get; set; }
 
-    /// <summary>A one-line description of what the queue is doing, for the status bar.</summary>
+    /// <summary>
+    /// A one-line description of what the queue is doing and how far through
+    /// it is, for the status bar, such as "Compressing clip.mov · 3 of 8
+    /// done · 1 failed".
+    /// </summary>
     public string Summary
     {
         get
         {
-            var waiting = CountWaiting();
-            var waitingText = waiting > 0 ? $" · {waiting} waiting" : "";
+            if (Items.Count == 0)
+            {
+                return "Add videos to start compressing.";
+            }
+
+            var done = Items.Count(item => item.Status == QueueItemStatus.Done);
+            var failed = Items.Count(item => item.Status == QueueItemStatus.Failed);
+            var counts = $"{done} of {Items.Count} done{(failed > 0 ? $" · {failed} failed" : "")}";
 
             if (CurrentItem is { } current)
             {
-                return $"Compressing {current.FileName}{waitingText}{(IsPaused ? " · Pausing after this video" : "")}";
+                return $"Compressing {current.FileName} · {counts}{(IsPaused ? " · Pausing after this video" : "")}";
             }
 
-            if (IsPaused)
+            if (CountWaiting() == 0)
             {
-                return $"Paused{waitingText}";
+                return $"Queue finished · {counts}";
             }
 
-            return Items.Count == 0 ? "Add videos to start compressing." : "Queue finished.";
+            return IsPaused ? $"Paused · {counts}" : counts;
         }
     }
 
@@ -136,7 +151,9 @@ public partial class QueueViewModel : ObservableObject
     /// Adds the videos at <c>paths</c> to the end of the queue, and starts it
     /// if it's idle and not paused. Skips, and names in the notice
     /// (<c>Notice</c>), anything that isn't a supported video file and any
-    /// video already waiting or being compressed.
+    /// video already waiting or being compressed. Each added video is probed
+    /// in the background, and marked failed straight away if it can't be
+    /// read.
     /// </summary>
     public void AddVideos(IEnumerable<string> paths)
     {
@@ -161,7 +178,9 @@ public partial class QueueViewModel : ObservableObject
             }
             else
             {
-                Items.Add(new QueueItemViewModel(path));
+                var item = new QueueItemViewModel(path);
+                Items.Add(item);
+                StartProbe(item);
             }
         }
 
@@ -259,6 +278,15 @@ public partial class QueueViewModel : ObservableObject
         item.Status = QueueItemStatus.Waiting;
         item.Details = null;
         Items.Move(Items.IndexOf(item), Items.Count - 1);
+
+        // A video that couldn't be read is probed again, in case the file
+        // has been fixed or replaced since.
+        if (item.Source is null)
+        {
+            item.SourceProbe = null;
+            StartProbe(item);
+        }
+
         StartProcessing();
     }
 
@@ -286,7 +314,65 @@ public partial class QueueViewModel : ObservableObject
         }
     }
 
-    partial void OnIsFfmpegReadyChanged(bool value) => StartProcessing();
+    partial void OnIsFfmpegReadyChanged(bool value)
+    {
+        foreach (var item in Items.Where(item => item.Status == QueueItemStatus.Waiting).ToList())
+        {
+            StartProbe(item);
+        }
+
+        StartProcessing();
+    }
+
+    // Starts probing a video in the background, unless it's already probed
+    // or being probed, or ffprobe hasn't passed the check yet. A video whose
+    // probe fails while it's waiting is marked failed then and there; one
+    // whose turn has come already fails through its compression instead.
+    private void StartProbe(QueueItemViewModel item)
+    {
+        if (item.SourceProbe is not null || !IsFfmpegReady)
+        {
+            return;
+        }
+
+        var probe = ProbeAsync(item.InputPath);
+        item.SourceProbe = probe;
+        _ = ShowProbeResultAsync(item, probe);
+    }
+
+    private async Task<SourceVideo> ProbeAsync(string inputPath)
+    {
+        await _probeSlots.WaitAsync();
+        try
+        {
+            return await _compressionRunner.ProbeAsync(inputPath, CancellationToken.None);
+        }
+        finally
+        {
+            _probeSlots.Release();
+        }
+    }
+
+    // Never throws: the outcome is recorded on the item.
+    private async Task ShowProbeResultAsync(QueueItemViewModel item, Task<SourceVideo> probe)
+    {
+        try
+        {
+            item.Source = await probe;
+        }
+        catch (Exception ex) when (item.SourceProbe == probe && item.Status == QueueItemStatus.Waiting)
+        {
+            _logger.LogWarning(ex, "Probing {InputPath} failed", item.InputPath);
+            item.Status = QueueItemStatus.Failed;
+            item.Details = FailureMessage(ex);
+            OnQueueChanged();
+        }
+        catch
+        {
+            // The video's compression reports the failure, or it's been
+            // removed or probed again since.
+        }
+    }
 
     // Compresses waiting videos in order until none are left or the queue
     // is paused. The pause is checked between videos, so the current one
@@ -316,13 +402,34 @@ public partial class QueueViewModel : ObservableObject
         _removeCurrentWhenStopped = false;
         item.Status = QueueItemStatus.Compressing;
         item.Details = null;
+        item.SizeChange = null;
+        item.ClearProgress();
         CurrentItem = item;
         OnQueueChanged();
 
+        // Reports arrive on the thread this was created on (the UI thread in
+        // the app). One can still arrive after the compression has ended, so
+        // anything from a compression that's no longer current is dropped.
+        var elapsed = Stopwatch.StartNew();
+        var progress = new Progress<EncodeProgress>(report =>
+        {
+            if (_currentCancellation == cancellation)
+            {
+                item.ReportProgress(report, elapsed.Elapsed);
+            }
+        });
+
         try
         {
-            var video = await _compressionRunner.CompressAsync(item.InputPath, cancellation.Token);
+            // Normally probed long before its turn, but a video added just
+            // now may still be being probed.
+            StartProbe(item);
+            var source = await item.SourceProbe!.WaitAsync(cancellation.Token);
+            item.Source = source;
+
+            var video = await _compressionRunner.CompressAsync(source, progress, cancellation.Token);
             item.Status = QueueItemStatus.Done;
+            item.SizeChange = DisplayText.SizeChange(source.SizeBytes, video.SizeBytes);
             item.Details = string.Join(Environment.NewLine, [$"Saved to {video.OutputPath}", .. video.Warnings]);
         }
         // Cancelling can surface as ffmpeg failing rather than as a
@@ -340,15 +447,22 @@ public partial class QueueViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "Compression of {InputPath} failed", item.InputPath);
             item.Status = QueueItemStatus.Failed;
-            item.Details = ex is CompressionFailedException ? ex.Message : GenericFailureMessage;
+            item.Details = FailureMessage(ex);
         }
         finally
         {
             _currentCancellation = null;
+            item.ClearProgress();
             CurrentItem = null;
             OnQueueChanged();
         }
     }
+
+    // What to tell the user about a failure. Explained failures carry their
+    // own message; anything else mostly carries ffmpeg's raw output, which
+    // is logged but not shown.
+    private static string FailureMessage(Exception ex) =>
+        ex is CompressionFailedException ? ex.Message : GenericFailureMessage;
 
     // Refreshes everything worked out from the items' statuses.
     private void OnQueueChanged()

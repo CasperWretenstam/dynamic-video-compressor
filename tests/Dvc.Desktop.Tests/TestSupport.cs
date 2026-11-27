@@ -24,12 +24,16 @@ internal sealed class TempFolder : IDisposable
 }
 
 // Stands in for ffmpeg: probing returns a fixed 1080p source, and encoding
-// writes a few bytes to the output, then does whatever the test sets up.
-// Everything up to a held encode runs synchronously, so a test that holds
-// nothing sees each compression finish before its call returns.
+// writes a few bytes to the output, reports any progress the test set up,
+// then does whatever else the test sets up. Everything up to a held probe or
+// encode runs synchronously, so a test that holds nothing sees each
+// compression finish before its call returns.
 internal sealed class FakeCompressionService : IVideoCompressionService
 {
     public const string EncodedContent = "encoded";
+
+    public const string UnreadableMessage =
+        "The file could not be read as a video. It may be corrupt or in an unsupported format.";
 
     public static readonly SourceInfo Source = new()
     {
@@ -43,6 +47,7 @@ internal sealed class FakeCompressionService : IVideoCompressionService
     };
 
     private readonly SemaphoreSlim _releases = new(0);
+    private readonly SemaphoreSlim _probeReleases = new(0);
     private readonly List<string> _encodedInputs = [];
 
     // Thrown by encoding after it has written its partial output.
@@ -56,7 +61,19 @@ internal sealed class FakeCompressionService : IVideoCompressionService
     // ReleaseEncode lets it finish or it's cancelled.
     public bool HoldEncodes { get; set; }
 
-    public int ProbeCount { get; private set; }
+    // Inputs whose probe fails as if ffprobe couldn't read them.
+    public HashSet<string> FailingProbes { get; } = [];
+
+    // Makes each probe wait until ReleaseProbe lets it finish or it's
+    // cancelled.
+    public bool HoldProbes { get; set; }
+
+    // Reported, in order, by each encode once it has written its output.
+    public List<EncodeProgress> ProgressReports { get; } = [];
+
+    private int _probeCount;
+
+    public int ProbeCount => Volatile.Read(ref _probeCount);
 
     // The inputs encoding has started for, in order.
     public IReadOnlyList<string> EncodedInputs
@@ -66,10 +83,18 @@ internal sealed class FakeCompressionService : IVideoCompressionService
 
     public void ReleaseEncode() => _releases.Release();
 
-    public Task<SourceInfo> ProbeAsync(string inputPath, CancellationToken cancellationToken)
+    public void ReleaseProbe() => _probeReleases.Release();
+
+    public async Task<SourceInfo> ProbeAsync(string inputPath, CancellationToken cancellationToken)
     {
-        ProbeCount++;
-        return Task.FromResult(Source);
+        Interlocked.Increment(ref _probeCount);
+
+        if (HoldProbes)
+        {
+            await _probeReleases.WaitAsync(cancellationToken);
+        }
+
+        return FailingProbes.Contains(inputPath) ? throw new CompressionFailedException(UnreadableMessage) : Source;
     }
 
     public async Task<CompressionResult> EncodeAsync(
@@ -81,6 +106,11 @@ internal sealed class FakeCompressionService : IVideoCompressionService
         }
 
         File.WriteAllText(outputPath, EncodedContent);
+
+        foreach (var report in ProgressReports)
+        {
+            progress?.Report(report);
+        }
 
         if (HoldEncodes)
         {
